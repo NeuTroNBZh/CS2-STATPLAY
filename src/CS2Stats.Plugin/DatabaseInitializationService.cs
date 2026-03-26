@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
+using System.Text;
 
 namespace CS2Stats.Plugin;
 
@@ -100,17 +101,10 @@ public sealed class DatabaseInitializationService
 
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        // Split by common SQL delimiters and execute statements
-        var statements = script.Split(new[] { ";\n", ";\r\n", ";" }, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var statement in statements)
+        foreach (var statement in SplitSqlScript(script))
         {
-            var trimmedStatement = statement.Trim();
-            if (string.IsNullOrWhiteSpace(trimmedStatement))
-                continue;
-
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = trimmedStatement;
+            cmd.CommandText = statement;
             cmd.CommandTimeout = 60;
 
             try
@@ -123,6 +117,59 @@ public sealed class DatabaseInitializationService
                 _logger.LogDebug("[CS2Stats] Table or object already exists (ignoring): {Error}", ex.Message);
             }
         }
+    }
+
+    internal static IReadOnlyList<string> SplitSqlScript(string script)
+    {
+        var statements = new List<string>();
+        using var reader = new StringReader(script);
+
+        var currentDelimiter = ";";
+        var builder = new StringBuilder();
+
+        while (reader.ReadLine() is { } rawLine)
+        {
+            var trimmedLine = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedLine))
+            {
+                continue;
+            }
+
+            if (trimmedLine.StartsWith("--", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (trimmedLine.StartsWith("DELIMITER ", StringComparison.OrdinalIgnoreCase))
+            {
+                currentDelimiter = trimmedLine[10..].Trim();
+                continue;
+            }
+
+            builder.AppendLine(rawLine);
+
+            if (!trimmedLine.EndsWith(currentDelimiter, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var statement = builder.ToString().Trim();
+            statement = statement[..^currentDelimiter.Length].TrimEnd();
+            if (!string.IsNullOrWhiteSpace(statement))
+            {
+                statements.Add(statement);
+            }
+
+            builder.Clear();
+        }
+
+        var trailing = builder.ToString().Trim();
+        if (!string.IsNullOrWhiteSpace(trailing))
+        {
+            statements.Add(trailing);
+        }
+
+        return statements;
     }
 
     /// <summary>
