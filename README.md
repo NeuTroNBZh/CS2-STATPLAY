@@ -142,6 +142,6 @@ The project includes:
 
 ## License
 
-No license file is currently defined in this repository.
+This project is distributed under the MIT License.
 
-If the project is intended for long-term public distribution, adding a license file is recommended.
+See [LICENSE](LICENSE).
