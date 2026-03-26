@@ -91,6 +91,8 @@ dotnet build src/CS2Stats.Plugin/CS2Stats.Plugin.csproj -c Release
 
 Full deployment instructions are available in [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
 
+Dathost quick guide: [DATHOST_INSTALL_TEST_GUIDE.md](DATHOST_INSTALL_TEST_GUIDE.md).
+
 Typical deployment flow:
 
 1. Build or download the release package.
