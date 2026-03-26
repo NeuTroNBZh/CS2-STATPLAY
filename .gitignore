@@ -12,6 +12,7 @@ CS2-RETAKE-3.0.1-linux.zip
 
 # User/editor files
 .vs/
+.vscode/
 .vscode/*.log
 
 # OS files
@@ -25,3 +26,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Repository-local files excluded by request
+.gitgnore
+docs/
