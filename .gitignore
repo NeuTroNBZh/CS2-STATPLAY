@@ -28,5 +28,7 @@ Thumbs.db
 *.temp
 
 # Repository-local files excluded by request
+.github/
+.vscode/
 .gitgnore
 docs/
