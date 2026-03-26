@@ -1,0 +1,7 @@
+<Project>
+  <Target Name="PackageCS2StatPlayRelease"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release' and '$(MSBuildProjectName)' == 'CS2Stats.Plugin' and '$(PackageOnBuild)' != 'false'">
+    <Exec Command="powershell -ExecutionPolicy Bypass -Command &quot;&amp; { $sourceDir = '$(TargetDir)'; &amp; '$(MSBuildThisFileDirectory)scripts\package-release.ps1' -Configuration '$(Configuration)' -Version '$(Version)' -SourceDirectory $sourceDir -SkipPublish }&quot;" />
+  </Target>
+</Project>

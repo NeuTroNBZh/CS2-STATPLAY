@@ -1,0 +1,27 @@
+# Build outputs
+bin/
+obj/
+
+# Test results
+TestResults/
+
+# Release artifacts
+artifacts/
+CS2-RETAKE-3.0.1-linux/
+CS2-RETAKE-3.0.1-linux.zip
+
+# User/editor files
+.vs/
+.vscode/*.log
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Temporary files
+*.tmp
+*.temp

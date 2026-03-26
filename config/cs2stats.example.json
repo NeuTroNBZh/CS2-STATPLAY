@@ -1,0 +1,25 @@
+{
+  "mySql": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "cs2_stats",
+    "username": "cs2stats",
+    "password": "change-me",
+    "sslRequired": false
+  },
+  "modules": {
+    "sessionTrackingEnabled": true,
+    "kdaEnabled": true,
+    "headshotEnabled": true,
+    "weaponFireEnabled": true,
+    "grenadeStatsEnabled": true,
+    "objectiveStatsEnabled": true,
+    "presenceSnapshotsEnabled": true,
+    "matchHistoryEnabled": false
+  },
+  "sync": {
+    "flushIntervalSeconds": 15,
+    "presenceSnapshotIntervalSeconds": 10,
+    "maxBufferedEvents": 5000
+  }
+}
