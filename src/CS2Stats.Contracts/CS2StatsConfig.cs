@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace CS2Stats.Contracts;
 
 public sealed class CS2StatsConfig
@@ -9,29 +11,60 @@ public sealed class CS2StatsConfig
 
 public sealed class MySqlSettings
 {
-    public string Host { get; init; } = "127.0.0.1";
-    public int Port { get; init; } = 3306;
-    public string Database { get; init; } = "cs2_stats";
-    public string Username { get; init; } = "cs2stats";
-    public string Password { get; init; } = "change-me";
-    public bool SslRequired { get; init; } = false;
+    [JsonPropertyName("host")]
+    public string Host { get; set; } = "127.0.0.1";
+
+    [JsonPropertyName("port")]
+    public int Port { get; set; } = 3306;
+
+    [JsonPropertyName("database")]
+    public string Database { get; set; } = "cs2_stats";
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "cs2stats";
+
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = "change-me";
+
+    [JsonPropertyName("sslRequired")]
+    public bool SslRequired { get; set; } = false;
 }
 
 public sealed class StatsModulesSettings
 {
-    public bool SessionTrackingEnabled { get; init; } = true;
-    public bool KdaEnabled { get; init; } = true;
-    public bool HeadshotEnabled { get; init; } = true;
-    public bool WeaponFireEnabled { get; init; } = true;
-    public bool GrenadeStatsEnabled { get; init; } = true;
-    public bool ObjectiveStatsEnabled { get; init; } = true;
-    public bool PresenceSnapshotsEnabled { get; init; } = true;
-    public bool MatchHistoryEnabled { get; init; } = false;
+    [JsonPropertyName("sessionTrackingEnabled")]
+    public bool SessionTrackingEnabled { get; set; } = true;
+
+    [JsonPropertyName("kdaEnabled")]
+    public bool KdaEnabled { get; set; } = true;
+
+    [JsonPropertyName("headshotEnabled")]
+    public bool HeadshotEnabled { get; set; } = true;
+
+    [JsonPropertyName("weaponFireEnabled")]
+    public bool WeaponFireEnabled { get; set; } = true;
+
+    [JsonPropertyName("grenadeStatsEnabled")]
+    public bool GrenadeStatsEnabled { get; set; } = true;
+
+    [JsonPropertyName("objectiveStatsEnabled")]
+    public bool ObjectiveStatsEnabled { get; set; } = true;
+
+    [JsonPropertyName("presenceSnapshotsEnabled")]
+    public bool PresenceSnapshotsEnabled { get; set; } = true;
+
+    [JsonPropertyName("matchHistoryEnabled")]
+    public bool MatchHistoryEnabled { get; set; } = false;
 }
 
 public sealed class SyncSettings
 {
-    public int FlushIntervalSeconds { get; init; } = 15;
-    public int PresenceSnapshotIntervalSeconds { get; init; } = 10;
-    public int MaxBufferedEvents { get; init; } = 5000;
+    [JsonPropertyName("flushIntervalSeconds")]
+    public int FlushIntervalSeconds { get; set; } = 15;
+
+    [JsonPropertyName("presenceSnapshotIntervalSeconds")]
+    public int PresenceSnapshotIntervalSeconds { get; set; } = 10;
+
+    [JsonPropertyName("maxBufferedEvents")]
+    public int MaxBufferedEvents { get; set; } = 5000;
 }
