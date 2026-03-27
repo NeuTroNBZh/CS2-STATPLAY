@@ -198,3 +198,13 @@
 - Status: accepted
 - Decision: aligner la version plugin et packaging sur `1.0.0` et conserver le modele de distribution dual-package (normal + update-no-config) comme standard de release.
 - Reason: la fonctionnalite V1 demandee est couverte, stabilisee et documentee; la release doit refleter ce niveau de maturite.
+
+### D-040: Canonical repository name is CS2-STATPLAY
+- Status: accepted
+- Decision: utiliser `NeuTroNBZh/CS2-STATPLAY` comme repository principal de publication et non `CS2-STATPLAY-clean`.
+- Reason: alignement avec l'identite produit et demande explicite de nom final.
+
+### D-041: GitHub release workflow must declare write permissions
+- Status: accepted
+- Decision: declarer `permissions: contents: write` dans `github-release.yml`.
+- Reason: sans permission explicite, la creation de release et l'upload d'assets peuvent echouer selon la politique de token du repository.
