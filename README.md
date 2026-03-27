@@ -1,7 +1,7 @@
 # CS2-STATPLAY
 
-[![release-package](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/release-package.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/release-package.yml)
-[![github-release](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/github-release.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/github-release.yml)
+[![release-package](https://github.com/NeuTroNBZh/CS2-STATPLAY/actions/workflows/release-package.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY/actions/workflows/release-package.yml)
+[![github-release](https://github.com/NeuTroNBZh/CS2-STATPLAY/actions/workflows/github-release.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY/actions/workflows/github-release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-0f172a.svg)](LICENSE)
 [![Platform: CS2 + CounterStrikeSharp](https://img.shields.io/badge/Platform-CS2%20%2B%20CounterStrikeSharp-14532d.svg)](https://docs.cssharp.dev/docs/guides/getting-started.html)
 
