@@ -311,3 +311,21 @@
 
 ### Etape suivante immediate
 - Validation build/tests + generation package 1.0.0 + push GitHub + tag `v1.0.0` pour declencher la release GitHub.
+
+## 2026-03-27 (Suite - Repo final + release upload fix)
+
+### Repository cible corrige
+- Le repository de destination a ete cree au nom final demande: `NeuTroNBZh/CS2-STATPLAY`.
+- Le remote Git local a ete repointe de `CS2-STATPLAY-clean` vers `CS2-STATPLAY`.
+- `main` et les tags (`v0.9.0`, `v1.0.0`) ont ete pushes sur le nouveau repo.
+
+### Correctif release GitHub
+- Ajout de `permissions: contents: write` dans `.github/workflows/github-release.yml` pour autoriser la creation de release et l'upload des assets via `GITHUB_TOKEN`.
+- Mise a jour des badges README pour pointer vers le repo final `CS2-STATPLAY`.
+- Publication verifiee de la release `v1.0.0` avec les 3 assets attendus:
+  - `CS2-STATPLAY-1.0.0-linux-x64.zip`
+  - `CS2-STATPLAY-1.0.0-linux-x64-update-no-config.zip`
+  - `SHA256SUMS.txt`
+
+### Tooling GitHub
+- Verification faite: `gh` (GitHub CLI) est deja installe localement (`2.88.1`), aucune installation supplementaire necessaire.
