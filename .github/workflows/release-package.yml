@@ -13,7 +13,7 @@ jobs:
 
     env:
       PACKAGE_ID: CS2-STATPLAY
-      PACKAGE_VERSION: 0.9.0
+      PACKAGE_VERSION: 1.0.0
       RUNTIME_ID: linux-x64
 
     steps:
@@ -38,27 +38,47 @@ jobs:
       - name: Verify SHA256 checksum
         shell: pwsh
         run: |
-          $expectedLine = Get-Content "artifacts/SHA256SUMS.txt" | Select-String "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip"
-          if (-not $expectedLine) {
-            throw "Checksum entry not found for packaged zip."
-          }
-          $expectedHash = ($expectedLine.ToString().Split(' ')[0]).Trim()
-          $actualHash = (Get-FileHash "artifacts/${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($expectedHash -ne $actualHash) {
-            throw "Checksum verification failed. Expected $expectedHash but got $actualHash"
+          $zipNames = @(
+            "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip",
+            "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}-update-no-config.zip"
+          )
+
+          foreach ($zipName in $zipNames) {
+            $expectedLine = Get-Content "artifacts/SHA256SUMS.txt" | Select-String $zipName
+            if (-not $expectedLine) {
+              throw "Checksum entry not found for packaged zip: $zipName"
+            }
+
+            $expectedHash = ($expectedLine.ToString().Split(' ')[0]).Trim()
+            $actualHash = (Get-FileHash "artifacts/$zipName" -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($expectedHash -ne $actualHash) {
+              throw "Checksum verification failed for $zipName. Expected $expectedHash but got $actualHash"
+            }
           }
 
-      - name: Upload Folder Artifact
+      - name: Upload Folder Artifact (with config)
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-folder
           path: artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}
 
-      - name: Upload Zip Artifact
+      - name: Upload Folder Artifact (update no config)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-update-no-config-folder
+          path: artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-update-no-config
+
+      - name: Upload Zip Artifact (with config)
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-zip
           path: artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}.zip
+
+      - name: Upload Zip Artifact (update no config)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-update-no-config-zip
+          path: artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-update-no-config.zip
 
       - name: Upload Checksum Artifact
         uses: actions/upload-artifact@v4

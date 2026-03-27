@@ -1,149 +1,167 @@
 # CS2-STATPLAY
 
-CS2-STATPLAY is a production-oriented CounterStrikeSharp plugin for Counter-Strike 2 that captures server and player statistics, persists them to MySQL, and ships as a ready-to-deploy release package.
+[![release-package](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/release-package.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/release-package.yml)
+[![github-release](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/github-release.yml/badge.svg)](https://github.com/NeuTroNBZh/CS2-STATPLAY-clean/actions/workflows/github-release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0f172a.svg)](LICENSE)
+[![Platform: CS2 + CounterStrikeSharp](https://img.shields.io/badge/Platform-CS2%20%2B%20CounterStrikeSharp-14532d.svg)](https://docs.cssharp.dev/docs/guides/getting-started.html)
 
-It is intended for server operators who want a practical stats plugin with a clean deployment flow, structured data persistence, and reproducible GitHub releases.
+Production-oriented Counter-Strike 2 stats plugin for CounterStrikeSharp with MySQL persistence.
 
-## Highlights
+It captures, stores, and aggregates player/server data across three levels:
 
-- CounterStrikeSharp plugin for CS2 dedicated servers
-- MySQL-backed persistence for player, session, and map-level history
-- Kills, deaths, assists, headshots, weapon fire, and action-event capture
-- Real-time presence snapshots for connected players
-- Release packaging that produces a server-ready folder and zip
-- Linux and Windows installer scripts included in releases
-- GitHub Actions for CI artifacts and tagged releases
+- global player lifetime
+- per player session
+- per map session
 
-## Release Package Layout
+Two release variants are provided for safe operations:
 
-Each release generates a package like:
+- normal package (includes config) for first install
+- update package (without config) for upgrades without overwriting credentials
 
-```text
-CS2-STATPLAY-0.9.0-linux-x64/
-	addons/
-		counterstrikesharp/
-			plugins/
-				CS2Stats/
-			configs/
-				plugins/
-					CS2Stats/
-						CS2Stats.json
-	sql/
-		001_v1_baseline_schema.sql
-		002_v1_aggregation_stored_procedures.sql
-	install.sh
-	install.ps1
-	CHANGELOG.md
-	DEPLOYMENT_GUIDE.md
-	README_PACKAGE.txt
+## What It Collects
+
+- playtime (session and lifetime)
+- K/D/A
+- headshots
+- weapon fire counts
+- grenade detonation stats (HE/Flash/Molotov/Smoke)
+- objective stats (bomb plants and defuses)
+- round MVP events
+- connected players snapshots (count + player identity)
+- detailed kill events and player action events
+- map session and round lifecycle history
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A[CS2 Game Events] --> B[StatsCaptureService]
+    B --> C[Buffered StatsBatch]
+    C --> D[MySqlStatsWriter]
+    D --> E[(MySQL Raw Tables)]
+    E --> F[Stored Procedures]
+    F --> G[(Aggregate Tables)]
+    G --> H[Website / API / BI / AI]
 ```
 
-The corresponding zip and SHA256 checksum are generated automatically.
+Main runtime components:
 
-## Features
+- `src/CS2Stats.Plugin/CS2StatsPlugin.cs`: plugin lifecycle, timers, flush orchestration
+- `src/CS2Stats.Plugin/StatsCaptureService.cs`: event-to-contract capture and buffering
+- `src/CS2Stats.Plugin/MySqlStatsWriter.cs`: transactional batch persistence
+- `src/CS2Stats.Plugin/AggregationService.cs`: aggregate refresh strategy
+- `sql/001_v1_baseline_schema.sql`: schema
+- `sql/002_v1_aggregation_stored_procedures.sql`: aggregate refresh procedures
 
-- Player session tracking
-- K/D/A capture
-- Headshot tracking from validated events
-- Weapon fire and objective action capture
-- Online presence snapshots
-- Map/session persistence model
-- SQL aggregation procedures for reporting
-- Automated packaging and release flow
+## Install
 
-## Project Structure
+### 1) Requirements
 
-- `src/CS2Stats.Contracts` shared contracts and configuration models
-- `src/CS2Stats.Plugin` plugin runtime and persistence code
-- `src/CS2Stats.Tests` automated tests
-- `sql/` database schema and aggregation procedures
-- `scripts/` packaging automation
-- `config/` example runtime configuration
-
-## Requirements
-
-- .NET 8 SDK
-- CounterStrikeSharp environment for Counter-Strike 2
+- Counter-Strike 2 dedicated server
+- MetaMod + CounterStrikeSharp correctly installed under `game/csgo/addons`
 - MySQL 8+
-- PowerShell 5.1+ or PowerShell 7+
 
-## Quick Start
+### 2) Choose release package
 
-Build the solution:
+- **Fresh install**: `CS2-STATPLAY-1.0.0-linux-x64.zip`
+- **Update without overwriting config**: `CS2-STATPLAY-1.0.0-linux-x64-update-no-config.zip`
+
+### 3) Extract and copy
+
+Copy the package `addons/` folder into your server `game/csgo/` directory.
+
+Expected final paths:
+
+- `game/csgo/addons/counterstrikesharp/plugins/CS2Stats/CS2Stats.dll`
+- `game/csgo/addons/counterstrikesharp/configs/plugins/CS2Stats/CS2Stats.json` (normal package only)
+
+### 4) Configure MySQL
+
+Edit the config file generated from `config/cs2stats.example.json`:
+
+```json
+{
+  "mySql": {
+    "host": "YOUR_HOST",
+    "port": 3306,
+    "database": "YOUR_DATABASE",
+    "username": "YOUR_USER",
+    "password": "YOUR_PASSWORD",
+    "sslRequired": true
+  },
+  "modules": {
+    "sessionTrackingEnabled": true,
+    "kdaEnabled": true,
+    "headshotEnabled": true,
+    "weaponFireEnabled": true,
+    "grenadeStatsEnabled": true,
+    "objectiveStatsEnabled": true,
+    "presenceSnapshotsEnabled": true,
+    "matchHistoryEnabled": false
+  },
+  "sync": {
+    "flushIntervalSeconds": 15,
+    "presenceSnapshotIntervalSeconds": 10,
+    "maxBufferedEvents": 5000
+  }
+}
+```
+
+### 5) Initialize database schema
+
+Run:
+
+```sql
+SOURCE sql/001_v1_baseline_schema.sql;
+SOURCE sql/002_v1_aggregation_stored_procedures.sql;
+```
+
+Restart the server and verify the plugin is loaded with `css_plugins list`.
+
+## Update Flow (Safe)
+
+Use `...-update-no-config.zip` for production updates.
+
+It updates binaries only and does not include `CS2Stats.json`, so your database credentials stay untouched.
+
+## Data For Web/API/AI
+
+The complete table-by-table guide is in:
+
+- `docs/STATS_DATA_REFERENCE.md`
+
+It includes:
+
+- every table name and field purpose
+- table grain and relationships
+- practical SQL query examples
+- website/API integration patterns
+- reuse ideas for analytics and AI agents
+
+## Local Development
 
 ```powershell
+dotnet restore CSStat.sln
 dotnet build CSStat.sln
-```
-
-Generate a release package:
-
-```powershell
-pwsh ./scripts/package-release.ps1
-```
-
-Or build the plugin in Release, which also generates the package automatically:
-
-```powershell
-dotnet build src/CS2Stats.Plugin/CS2Stats.Plugin.csproj -c Release
-```
-
-## Deployment
-
-Full deployment instructions are available in [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
-
-Dathost quick guide: [DATHOST_INSTALL_TEST_GUIDE.md](DATHOST_INSTALL_TEST_GUIDE.md).
-
-Typical deployment flow:
-
-1. Build or download the release package.
-2. Extract it at the root of the server.
-3. Edit `addons/counterstrikesharp/configs/plugins/CS2Stats/CS2Stats.json`.
-4. Import the SQL files into MySQL.
-5. Restart the server or reload the plugin.
-
-## Testing
-
-```powershell
 dotnet test CSStat.sln
 ```
 
-## CI And GitHub Releases
-
-This repository includes:
-
-- `.github/workflows/release-package.yml` for CI artifact generation
-- `.github/workflows/github-release.yml` for release publication on tags like `v0.9.0`
-
-Tagged releases publish:
-
-- packaged zip
-- SHA256 checksums
-- package readme
-- package changelog
-
-## Versioning
-
-Current packaged version: `0.9.0`.
-
-To publish a release manually:
+Generate release packages locally:
 
 ```powershell
-git tag v0.9.0
-git push origin v0.9.0
+./scripts/package-release.ps1 -Configuration Release -Version 1.0.0 -PackageId CS2-STATPLAY -RuntimeIdentifier linux-x64
 ```
 
-## Repository Quality
+## Release 1.0.0
 
-The project includes:
+Tag `v1.0.0` produces:
 
-- release automation
-- checksum verification in CI
-- Linux and Windows installers
-- SQL schema and aggregation procedures
-- tests for core capture behavior
+- `CS2-STATPLAY-1.0.0-linux-x64.zip`
+- `CS2-STATPLAY-1.0.0-linux-x64-update-no-config.zip`
+- `SHA256SUMS.txt`
 
-## License
+## Contribution, Security, License
 
-This project is distributed under the MIT License.
-
-See [LICENSE](LICENSE).
+- Contribution guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- License: `LICENSE` (MIT)

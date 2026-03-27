@@ -1,39 +1,25 @@
 # Build outputs
 bin/
 obj/
-
-# Test results
-TestResults/
-
-# Release artifacts
 artifacts/
-CS2-RETAKE-3.0.1-linux/
-CS2-RETAKE-3.0.1-linux.zip
 
-# User/editor files
+# Visual Studio / VS Code
 .vs/
-.vscode/
-.vscode/*.log
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+
+# Logs
+*.log
 
 # OS files
 Thumbs.db
-.DS_Store
-
-# NuGet
-*.nupkg
-*.snupkg
+Desktop.ini
 
 # Temporary files
 *.tmp
 *.temp
-
-# Repository-local files excluded by request
-.vscode/
-.gitgnore
-docs/
-
-# Keep only workflows tracked in .github
-.github/agents/
-.github/instructions/
-.github/ISSUE_TEMPLATE/
-.github/PULL_REQUEST_TEMPLATE.md

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
 
@@ -136,8 +137,9 @@ public sealed class AggregationService
         {
             _logger.LogInformation("[CS2Stats] Starting full stats refresh");
 
-            // Refresh lifetime stats for all players
             await RefreshPlayerLifetimeStatsAsync(null, cancellationToken).ConfigureAwait(false);
+            await RefreshPendingSessionStatsAsync(cancellationToken).ConfigureAwait(false);
+            await RefreshPendingMapStatsAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("[CS2Stats] Full stats refresh completed");
         }
@@ -180,5 +182,92 @@ public sealed class AggregationService
 
         var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return result != null ? (ulong?)Convert.ToUInt64(result) : null;
+    }
+
+    /// <summary>
+    /// Refresh session stats for all closed sessions that don't have a stats row yet.
+    /// </summary>
+    public async Task RefreshPendingSessionStatsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            var pendingIds = new List<ulong>();
+            await using (var selectCmd = connection.CreateCommand())
+            {
+                selectCmd.CommandText = @"
+                    SELECT ps.player_session_id
+                    FROM player_sessions ps
+                    LEFT JOIN player_session_stats pss ON ps.player_session_id = pss.player_session_id
+                    WHERE ps.disconnected_at_utc IS NOT NULL
+                      AND pss.player_session_id IS NULL";
+                await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    pendingIds.Add(reader.GetUInt64(0));
+            }
+
+            foreach (var sessionId in pendingIds)
+            {
+                await using var cmd = connection.CreateCommand();
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                cmd.CommandText = "sp_refresh_player_session_stats";
+                cmd.Parameters.AddWithValue("@p_player_session_id", sessionId);
+                await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (pendingIds.Count > 0)
+                _logger.LogInformation("[CS2Stats] Refreshed session stats for {Count} pending sessions", pendingIds.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CS2Stats] Failed to refresh pending session stats");
+        }
+    }
+
+    /// <summary>
+    /// Refresh map stats for all (player, map_session) combinations that don't have a map stats row yet.
+    /// </summary>
+    public async Task RefreshPendingMapStatsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            var pending = new List<(ulong PlayerId, ulong MapSessionId)>();
+            await using (var selectCmd = connection.CreateCommand())
+            {
+                selectCmd.CommandText = @"
+                    SELECT DISTINCT ps.player_id, ps.map_session_id
+                    FROM player_sessions ps
+                    LEFT JOIN player_map_stats pms
+                      ON ps.player_id = pms.player_id
+                     AND ps.map_session_id = pms.map_session_id
+                    WHERE ps.disconnected_at_utc IS NOT NULL
+                      AND pms.player_id IS NULL";
+                await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    pending.Add((reader.GetUInt64(0), reader.GetUInt64(1)));
+            }
+
+            foreach (var (playerId, mapSessionId) in pending)
+            {
+                await using var cmd = connection.CreateCommand();
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                cmd.CommandText = "sp_refresh_player_map_stats";
+                cmd.Parameters.AddWithValue("@p_player_id", playerId);
+                cmd.Parameters.AddWithValue("@p_map_session_id", mapSessionId);
+                await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (pending.Count > 0)
+                _logger.LogInformation("[CS2Stats] Refreshed map stats for {Count} pending player/map combinations", pending.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CS2Stats] Failed to refresh pending map stats");
+        }
     }
 }

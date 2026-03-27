@@ -41,14 +41,22 @@ jobs:
       - name: Verify SHA256 checksum
         shell: pwsh
         run: |
-          $expectedLine = Get-Content "artifacts/SHA256SUMS.txt" | Select-String "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip"
-          if (-not $expectedLine) {
-            throw "Checksum entry not found for packaged zip."
-          }
-          $expectedHash = ($expectedLine.ToString().Split(' ')[0]).Trim()
-          $actualHash = (Get-FileHash "artifacts/${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($expectedHash -ne $actualHash) {
-            throw "Checksum verification failed. Expected $expectedHash but got $actualHash"
+          $zipNames = @(
+            "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}.zip",
+            "${env:PACKAGE_ID}-${env:PACKAGE_VERSION}-${env:RUNTIME_ID}-update-no-config.zip"
+          )
+
+          foreach ($zipName in $zipNames) {
+            $expectedLine = Get-Content "artifacts/SHA256SUMS.txt" | Select-String $zipName
+            if (-not $expectedLine) {
+              throw "Checksum entry not found for packaged zip: $zipName"
+            }
+
+            $expectedHash = ($expectedLine.ToString().Split(' ')[0]).Trim()
+            $actualHash = (Get-FileHash "artifacts/$zipName" -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($expectedHash -ne $actualHash) {
+              throw "Checksum verification failed for $zipName. Expected $expectedHash but got $actualHash"
+            }
           }
 
       - name: Create GitHub Release
@@ -56,7 +64,6 @@ jobs:
         with:
           files: |
             artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}.zip
+            artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}-update-no-config.zip
             artifacts/SHA256SUMS.txt
-            artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}/CHANGELOG.md
-            artifacts/${{ env.PACKAGE_ID }}-${{ env.PACKAGE_VERSION }}-${{ env.RUNTIME_ID }}/README_PACKAGE.txt
           generate_release_notes: true
