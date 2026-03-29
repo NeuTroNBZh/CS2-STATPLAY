@@ -213,3 +213,8 @@
 - Status: accepted
 - Decision: lors d'un `SessionClosed`, fermer la derniere session ouverte pour le `player_id` sans filtrer sur `map_session_id`.
 - Reason: un filtre strict par map peut laisser des sessions orphelines ouvertes si la session map derive, ce qui gonfle ensuite `total_playtime_seconds` via `COALESCE(disconnected_at_utc, UTC_TIMESTAMP(6))` dans l'aggregation.
+
+### D-043: Auto-close existing open session on new connect
+- Status: accepted
+- Decision: avant d'inserer une nouvelle `player_sessions` sur `SessionOpened`, fermer toute session ouverte existante du meme joueur au timestamp de la nouvelle connexion.
+- Reason: eviter les sessions qui se chevauchent (duplicate connect / ordre d'evenements imparfait) qui peuvent gonfler le playtime cumule meme quand aucun disconnect n'est manquant.

@@ -56,6 +56,27 @@ public sealed class MySqlStatsWriter : IStatsWriter
 
                 var playerId = await EnsurePlayerIdAsync(connection, tx, opened.SteamId64, opened.ConnectedAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
 
+                // Defensive close: if an open session already exists for this player,
+                // close it at the new connect timestamp to avoid overlapping sessions.
+                await using (var closePreviousOpen = new MySqlCommand(@"
+UPDATE player_sessions
+SET disconnected_at_utc = @disconnected_at_utc,
+    disconnect_reason = @disconnect_reason,
+    server_current_time_disconnect = @server_time,
+    updated_at_utc = @updated_at_utc
+WHERE player_id = @player_id
+  AND disconnected_at_utc IS NULL
+  AND connected_at_utc <= @connected_at_utc", connection, tx))
+                {
+                    closePreviousOpen.Parameters.AddWithValue("@disconnected_at_utc", opened.ConnectedAtUtc);
+                    closePreviousOpen.Parameters.AddWithValue("@disconnect_reason", "auto_close_on_new_connect");
+                    closePreviousOpen.Parameters.AddWithValue("@server_time", opened.ServerCurrentTimeSeconds);
+                    closePreviousOpen.Parameters.AddWithValue("@updated_at_utc", opened.ConnectedAtUtc);
+                    closePreviousOpen.Parameters.AddWithValue("@player_id", playerId);
+                    closePreviousOpen.Parameters.AddWithValue("@connected_at_utc", opened.ConnectedAtUtc);
+                    await closePreviousOpen.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
                 await using var cmd = new MySqlCommand(@"
 INSERT INTO player_sessions (
     player_id, map_session_id, connected_at_utc, server_current_time_connect, created_at_utc, updated_at_utc
