@@ -73,7 +73,6 @@ INSERT INTO player_sessions (
 
             foreach (var closed in batch.SessionClosed)
             {
-                var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, closed.DisconnectedAtUtc, cancellationToken).ConfigureAwait(false);
                 var playerId = await EnsurePlayerIdAsync(connection, tx, closed.SteamId64, closed.DisconnectedAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
 
                 await using var updateCmd = new MySqlCommand(@"
@@ -83,7 +82,6 @@ SET disconnected_at_utc = @disconnected_at_utc,
     server_current_time_disconnect = @server_time,
     updated_at_utc = @updated_at_utc
 WHERE player_id = @player_id
-  AND map_session_id = @map_session_id
   AND disconnected_at_utc IS NULL
 ORDER BY connected_at_utc DESC
 LIMIT 1", connection, tx);
@@ -93,11 +91,12 @@ LIMIT 1", connection, tx);
                 updateCmd.Parameters.AddWithValue("@server_time", closed.ServerCurrentTimeSeconds);
                 updateCmd.Parameters.AddWithValue("@updated_at_utc", closed.DisconnectedAtUtc);
                 updateCmd.Parameters.AddWithValue("@player_id", playerId);
-                updateCmd.Parameters.AddWithValue("@map_session_id", mapSessionId);
 
                 var affected = await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 if (affected == 0)
                 {
+                    var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, closed.DisconnectedAtUtc, cancellationToken).ConfigureAwait(false);
+
                     await using var insertCmd = new MySqlCommand(@"
 INSERT INTO player_sessions (
     player_id, map_session_id, connected_at_utc, disconnected_at_utc, disconnect_reason,

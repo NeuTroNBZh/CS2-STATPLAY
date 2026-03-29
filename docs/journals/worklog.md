@@ -329,3 +329,18 @@
 
 ### Tooling GitHub
 - Verification faite: `gh` (GitHub CLI) est deja installe localement (`2.88.1`), aucune installation supplementaire necessaire.
+
+## 2026-03-29 (Suite - Diagnostic playtime biaise)
+
+### Cause probable identifiee dans le flux runtime
+- Analyse du path `SessionClosed` dans `MySqlStatsWriter`: la fermeture de session etait filtree par `player_id + map_session_id`.
+- En cas de derive map/session (ex: changement de map, events manquants, ordre d'arrivee), ce filtre pouvait ne toucher aucune ligne ouverte et laisser une session historique ouverte (`disconnected_at_utc IS NULL`).
+- Les procedures d'aggregation utilisent `COALESCE(disconnected_at_utc, UTC_TIMESTAMP(6))`, donc une session orpheline ouverte gonfle `total_playtime_seconds` au fil du temps.
+
+### Correctif applique
+- `MySqlStatsWriter` mis a jour pour fermer la session la plus recente ouverte par `player_id` uniquement (sans contraindre `map_session_id`).
+- Le fallback d'insertion zero-duree reste en place uniquement si aucune session ouverte n'est trouvable.
+
+### Validation
+- `dotnet build CSStat.sln` OK.
+- `dotnet test CSStat.sln` OK (13/13).

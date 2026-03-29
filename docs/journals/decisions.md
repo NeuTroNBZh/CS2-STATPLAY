@@ -208,3 +208,8 @@
 - Status: accepted
 - Decision: declarer `permissions: contents: write` dans `github-release.yml`.
 - Reason: sans permission explicite, la creation de release et l'upload d'assets peuvent echouer selon la politique de token du repository.
+
+### D-042: Close sessions by player, not map, on disconnect
+- Status: accepted
+- Decision: lors d'un `SessionClosed`, fermer la derniere session ouverte pour le `player_id` sans filtrer sur `map_session_id`.
+- Reason: un filtre strict par map peut laisser des sessions orphelines ouvertes si la session map derive, ce qui gonfle ensuite `total_playtime_seconds` via `COALESCE(disconnected_at_utc, UTC_TIMESTAMP(6))` dans l'aggregation.
