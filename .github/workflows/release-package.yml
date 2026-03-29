@@ -13,7 +13,7 @@ jobs:
 
     env:
       PACKAGE_ID: CS2-STATPLAY
-      PACKAGE_VERSION: 1.0.0
+      PACKAGE_VERSION: 1.0.1
       RUNTIME_ID: linux-x64
 
     steps:

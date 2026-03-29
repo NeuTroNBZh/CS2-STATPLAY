@@ -63,8 +63,8 @@ Main runtime components:
 
 ### 2) Choose release package
 
-- **Fresh install**: `CS2-STATPLAY-1.0.0-linux-x64.zip`
-- **Update without overwriting config**: `CS2-STATPLAY-1.0.0-linux-x64-update-no-config.zip`
+- **Fresh install**: `CS2-STATPLAY-1.0.1-linux-x64.zip`
+- **Update without overwriting config**: `CS2-STATPLAY-1.0.1-linux-x64-update-no-config.zip`
 
 ### 3) Extract and copy
 
@@ -149,15 +149,15 @@ dotnet test CSStat.sln
 Generate release packages locally:
 
 ```powershell
-./scripts/package-release.ps1 -Configuration Release -Version 1.0.0 -PackageId CS2-STATPLAY -RuntimeIdentifier linux-x64
+./scripts/package-release.ps1 -Configuration Release -Version 1.0.1 -PackageId CS2-STATPLAY -RuntimeIdentifier linux-x64
 ```
 
-## Release 1.0.0
+## Release 1.0.1
 
-Tag `v1.0.0` produces:
+Tag `v1.0.1` produces:
 
-- `CS2-STATPLAY-1.0.0-linux-x64.zip`
-- `CS2-STATPLAY-1.0.0-linux-x64-update-no-config.zip`
+- `CS2-STATPLAY-1.0.1-linux-x64.zip`
+- `CS2-STATPLAY-1.0.1-linux-x64-update-no-config.zip`
 - `SHA256SUMS.txt`
 
 ## Contribution, Security, License

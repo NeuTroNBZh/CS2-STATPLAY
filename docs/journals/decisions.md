@@ -218,3 +218,8 @@
 - Status: accepted
 - Decision: avant d'inserer une nouvelle `player_sessions` sur `SessionOpened`, fermer toute session ouverte existante du meme joueur au timestamp de la nouvelle connexion.
 - Reason: eviter les sessions qui se chevauchent (duplicate connect / ordre d'evenements imparfait) qui peuvent gonfler le playtime cumule meme quand aucun disconnect n'est manquant.
+
+### D-044: Publish patch release v1.0.1 for playtime reliability fixes
+- Status: accepted
+- Decision: publier une release patch `v1.0.1` incluant les correctifs de fermeture de session (disconnect + anti-chevauchement) et l'alignement des metadonnees/versioning de package.
+- Reason: les fixes sont critiques pour la fiabilite du playtime et doivent etre distribuables immediatement sous une version explicite et traçable.

@@ -352,3 +352,14 @@
 - Validation apres hardening:
   - `dotnet build CSStat.sln` OK.
   - `dotnet test CSStat.sln` OK (13/13).
+
+## 2026-03-29 (Suite - Release GitHub 1.0.1)
+
+### Bump patch release
+- Bump version plugin/runtime vers `1.0.1` (`CS2StatsPlugin`, `CS2Stats.Plugin.csproj`).
+- Alignement des defaults packaging CI/script sur `1.0.1` (`release-package.yml`, `package-release.ps1`).
+- Mise a jour documentation operationnelle (`README`, `CONTRIBUTING`) et `CHANGELOG` avec section `1.0.1`.
+
+### Publication
+- Build/test executes avant release.
+- Commit/push sur `main`, creation du tag `v1.0.1` et publication GitHub Release associee.

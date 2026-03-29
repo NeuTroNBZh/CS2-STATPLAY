@@ -19,7 +19,7 @@ dotnet test CSStat.sln
 If your change affects packaging or release behavior, also validate:
 
 ```powershell
-./scripts/package-release.ps1 -Configuration Release -Version 1.0.0 -PackageId CS2-STATPLAY -RuntimeIdentifier linux-x64
+./scripts/package-release.ps1 -Configuration Release -Version 1.0.1 -PackageId CS2-STATPLAY -RuntimeIdentifier linux-x64
 ```
 
 ## Coding Rules
