@@ -23,3 +23,12 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# User-requested ignore scope
+.github/
+.vscode/
+sql/
+SQL/
+scripts/
+docs/
+.gitignore

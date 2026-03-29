@@ -363,3 +363,9 @@
 ### Publication
 - Build/test executes avant release.
 - Commit/push sur `main`, creation du tag `v1.0.1` et publication GitHub Release associee.
+
+## 2026-03-29 (Suite - Gitignore scope)
+
+### Ignore patterns etendus sur demande utilisateur
+- Ajout dans `.gitignore` des motifs demandes: `.github/`, `.vscode/`, `sql/`, `scripts/`, `docs/`, `.gitignore`.
+- Ajout aussi de `SQL/` pour couvrir une variante de casse eventuelle.
