@@ -20,7 +20,7 @@ if (-not $Version) {
     $projectXml = [xml](Get-Content -Path $pluginProject)
     $assemblyVersion = $projectXml.Project.PropertyGroup.Version | Select-Object -First 1
     if ([string]::IsNullOrWhiteSpace($assemblyVersion)) {
-        $assemblyVersion = "1.0.0"
+        $assemblyVersion = "1.0.1"
     }
 
     $Version = $assemblyVersion
