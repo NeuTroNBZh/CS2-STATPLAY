@@ -344,3 +344,11 @@
 ### Validation
 - `dotnet build CSStat.sln` OK.
 - `dotnet test CSStat.sln` OK (13/13).
+
+### Hardening complementaire anti-chevauchement
+- Ajout d'un garde-fou dans `MySqlStatsWriter` sur `SessionOpened`: fermeture prealable de toute session ouverte existante du meme joueur avant insertion de la nouvelle session.
+- But: eviter les sessions qui se chevauchent (double connect/ordre d'evenements) et qui peuvent sur-gonfler `total_playtime_seconds` meme sans session ouverte orpheline.
+- Raison de robustesse: en production, certains flux connect/disconnect peuvent arriver en sequence imparfaite lors des transitions map/restart.
+- Validation apres hardening:
+  - `dotnet build CSStat.sln` OK.
+  - `dotnet test CSStat.sln` OK (13/13).
