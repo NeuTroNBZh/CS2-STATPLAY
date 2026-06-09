@@ -18,6 +18,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private volatile IStatsWriter _writer = null!;
     private AggregationService? _aggregationService;
     private StatsCommandService? _statsCommands;
+    private MilestoneWebhookService? _milestoneWebhook;
     private int _flushIntervalSeconds = 15;
     private int _presenceIntervalSeconds = 10;
     private volatile bool _writerDisabledDueToDbAuth;
@@ -151,6 +152,18 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
             return HookResult.Continue;
         });
 
+        RegisterEventHandler<EventHostageRescued>((@event, _) =>
+        {
+            _capture.OnHostageRescued(@event);
+            return HookResult.Continue;
+        });
+
+        RegisterEventHandler<EventHostageKilled>((@event, _) =>
+        {
+            _capture.OnHostageKilled(@event);
+            return HookResult.Continue;
+        });
+
         AddCommand("css_stats", "Affiche les stats d'un joueur", OnStatsCommand);
         AddCommand("css_rank", "Affiche ton classement", OnRankCommand);
         AddCommand("css_top", "Affiche le top 5", OnTopCommand);
@@ -248,6 +261,9 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
                 _reconnectDelaySeconds = 5;
             }
 
+            if (_milestoneWebhook != null)
+                _ = _milestoneWebhook.ProcessBatchAsync(batch, CancellationToken.None);
+
             if (_aggregationService != null)
                 _ = _aggregationService.RefreshAllStatsAsync(CancellationToken.None);
         }
@@ -291,6 +307,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
             var cs = BuildConnectionString(includeDatabase: true);
             _aggregationService = new AggregationService(cs, Logger);
             _statsCommands = new StatsCommandService(cs, Logger);
+            _milestoneWebhook = new MilestoneWebhookService(Config.Webhook, Config.Server.Name, Logger);
             _pendingReconnect = false;
             _reconnectDelaySeconds = 5;
         }

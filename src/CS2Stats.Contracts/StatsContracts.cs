@@ -41,7 +41,8 @@ public sealed record RoundEnded(
     int? EndReason,
     string? EndMessage,
     int? PlayerCountAtEnd,
-    int? RoundTimeSeconds
+    int? RoundTimeSeconds,
+    int? WinnerTeam
 );
 
 public sealed record PlayerDeathEvent(
@@ -80,6 +81,14 @@ public sealed record PresenceSnapshot(
     IReadOnlyList<PlayerIdentity> Players
 );
 
+public sealed record HostageEvent(
+    ulong? PlayerSteamId64,
+    DateTime OccurredAtUtc,
+    string MapName,
+    string EventType,
+    int? RoundNumber
+);
+
 public sealed class StatsBatch
 {
     public List<PlayerSessionOpened> SessionOpened { get; } = [];
@@ -89,6 +98,7 @@ public sealed class StatsBatch
     public List<PlayerDeathEvent> PlayerDeaths { get; } = [];
     public List<PlayerActionEvent> PlayerActions { get; } = [];
     public List<PresenceSnapshot> PresenceSnapshots { get; } = [];
+    public List<HostageEvent> HostageEvents { get; } = [];
 
     public bool IsEmpty =>
         SessionOpened.Count == 0 &&
@@ -97,5 +107,6 @@ public sealed class StatsBatch
         RoundEnded.Count == 0 &&
         PlayerDeaths.Count == 0 &&
         PlayerActions.Count == 0 &&
-        PresenceSnapshots.Count == 0;
+        PresenceSnapshots.Count == 0 &&
+        HostageEvents.Count == 0;
 }

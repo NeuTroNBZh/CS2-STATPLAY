@@ -61,3 +61,12 @@ public sealed class SyncSettings
     [JsonPropertyName("maxBufferedEvents")]
     public int MaxBufferedEvents { get; set; } = 5000;
 }
+
+public sealed class WebhookSettings
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("killsMilestone")]
+    public int KillsMilestone { get; set; } = 100;
+}

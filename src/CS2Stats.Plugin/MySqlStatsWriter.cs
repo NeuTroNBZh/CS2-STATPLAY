@@ -60,6 +60,7 @@ public sealed class MySqlStatsWriter : IStatsWriter
             await WritePlayerDeathsAsync(connection, tx, batch.PlayerDeaths, playerCache, cancellationToken).ConfigureAwait(false);
             await WritePlayerActionsAsync(connection, tx, batch.PlayerActions, playerCache, roundCache, cancellationToken).ConfigureAwait(false);
             await WritePresenceSnapshotsAsync(connection, tx, batch.PresenceSnapshots, playerCache, cancellationToken).ConfigureAwait(false);
+            await WriteHostageEventsAsync(connection, tx, batch.HostageEvents, playerCache, roundCache, cancellationToken).ConfigureAwait(false);
 
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -224,6 +225,7 @@ SET ended_at_utc = @ended_at_utc,
     end_message = @end_message,
     player_count_at_end = @player_count_at_end,
     round_time_seconds = @round_time_seconds,
+    winner_team = @winner_team,
     updated_at_utc = @updated_at_utc
 WHERE map_session_id = @map_session_id
   AND round_number = @round_number", connection, tx);
@@ -233,6 +235,7 @@ WHERE map_session_id = @map_session_id
             cmd.Parameters.AddWithValue("@end_message", round.EndMessage);
             cmd.Parameters.AddWithValue("@player_count_at_end", round.PlayerCountAtEnd);
             cmd.Parameters.AddWithValue("@round_time_seconds", round.RoundTimeSeconds);
+            cmd.Parameters.AddWithValue("@winner_team", round.WinnerTeam);
             cmd.Parameters.AddWithValue("@updated_at_utc", round.EndedAtUtc);
             cmd.Parameters.AddWithValue("@map_session_id", mapSessionId);
             cmd.Parameters.AddWithValue("@round_number", round.RoundNumber);
@@ -243,10 +246,10 @@ WHERE map_session_id = @map_session_id
             await using var insert = new MySqlCommand(@"
 INSERT INTO rounds (
     map_session_id, round_number, started_at_utc, ended_at_utc, end_reason, end_message,
-    player_count_at_end, round_time_seconds, created_at_utc, updated_at_utc
+    player_count_at_end, round_time_seconds, winner_team, created_at_utc, updated_at_utc
 ) VALUES (
     @map_session_id, @round_number, @started_at_utc, @ended_at_utc, @end_reason, @end_message,
-    @player_count_at_end, @round_time_seconds, @created_at_utc, @updated_at_utc
+    @player_count_at_end, @round_time_seconds, @winner_team, @created_at_utc, @updated_at_utc
 )", connection, tx);
 
             insert.Parameters.AddWithValue("@map_session_id", mapSessionId);
@@ -257,6 +260,7 @@ INSERT INTO rounds (
             insert.Parameters.AddWithValue("@end_message", round.EndMessage);
             insert.Parameters.AddWithValue("@player_count_at_end", round.PlayerCountAtEnd);
             insert.Parameters.AddWithValue("@round_time_seconds", round.RoundTimeSeconds);
+            insert.Parameters.AddWithValue("@winner_team", round.WinnerTeam);
             insert.Parameters.AddWithValue("@created_at_utc", round.EndedAtUtc);
             insert.Parameters.AddWithValue("@updated_at_utc", round.EndedAtUtc);
             await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -387,6 +391,39 @@ INSERT INTO presence_snapshot_players (
                 insertPlayer.Parameters.AddWithValue("@created_at_utc", snapshot.CapturedAtUtc);
                 await insertPlayer.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    private static async Task WriteHostageEventsAsync(
+        MySqlConnection connection, MySqlTransaction tx,
+        List<HostageEvent> events,
+        Dictionary<ulong, ulong> playerCache,
+        Dictionary<(ulong MapSessionId, int RoundNumber), ulong> roundCache,
+        CancellationToken cancellationToken)
+    {
+        foreach (var he in events)
+        {
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, he.MapName, he.OccurredAtUtc, null, cancellationToken).ConfigureAwait(false);
+            var playerId = await EnsureOptionalPlayerIdAsync(connection, tx, he.PlayerSteamId64, he.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
+
+            ulong? roundId = null;
+            if (he.RoundNumber.HasValue)
+                roundId = await TryGetRoundIdAsync(connection, tx, mapSessionId, he.RoundNumber.Value, roundCache, cancellationToken).ConfigureAwait(false);
+
+            await using var cmd = new MySqlCommand(@"
+INSERT INTO hostage_events (
+    map_session_id, round_id, occurred_at_utc, player_id, event_type, created_at_utc
+) VALUES (
+    @map_session_id, @round_id, @occurred_at_utc, @player_id, @event_type, @created_at_utc
+)", connection, tx);
+
+            cmd.Parameters.AddWithValue("@map_session_id", mapSessionId);
+            cmd.Parameters.AddWithValue("@round_id", roundId);
+            cmd.Parameters.AddWithValue("@occurred_at_utc", he.OccurredAtUtc);
+            cmd.Parameters.AddWithValue("@player_id", playerId);
+            cmd.Parameters.AddWithValue("@event_type", he.EventType);
+            cmd.Parameters.AddWithValue("@created_at_utc", he.OccurredAtUtc);
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

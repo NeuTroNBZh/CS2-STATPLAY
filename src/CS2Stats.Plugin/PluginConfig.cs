@@ -17,4 +17,7 @@ public sealed class PluginConfig : BasePluginConfig
 
     [JsonPropertyName("sync")]
     public SyncSettings Sync { get; set; } = new();
+
+    [JsonPropertyName("webhook")]
+    public WebhookSettings Webhook { get; set; } = new();
 }

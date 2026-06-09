@@ -97,32 +97,78 @@ public sealed class DatabaseInitializationService
         return ex.Number is 1044 or 1227 or 1142;
     }
 
+    private static readonly (int Version, string Sql)[] Migrations =
+    [
+        (1, "ALTER TABLE players ADD COLUMN display_name VARCHAR(128) NULL AFTER steam_id64"),
+        (2, "ALTER TABLE kill_events ADD COLUMN dmg_health INT NULL AFTER assisted_flash"),
+        (3, "ALTER TABLE kill_events ADD COLUMN dmg_armor INT NULL AFTER dmg_health"),
+        (4, "ALTER TABLE map_sessions ADD COLUMN server_id BIGINT UNSIGNED NULL AFTER map_session_id"),
+        (5, "ALTER TABLE rounds ADD COLUMN winner_team TINYINT NULL AFTER player_count_at_end"),
+        (6, @"CREATE TABLE IF NOT EXISTS hostage_events (
+    hostage_event_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    map_session_id BIGINT UNSIGNED NOT NULL,
+    round_id BIGINT UNSIGNED NULL,
+    occurred_at_utc DATETIME(6) NOT NULL,
+    player_id BIGINT UNSIGNED NULL,
+    event_type VARCHAR(32) NOT NULL,
+    created_at_utc DATETIME(6) NOT NULL,
+    PRIMARY KEY (hostage_event_id),
+    KEY ix_hostage_events_map_time (map_session_id, occurred_at_utc),
+    CONSTRAINT fk_hostage_events_map_session FOREIGN KEY (map_session_id) REFERENCES map_sessions (map_session_id),
+    CONSTRAINT fk_hostage_events_round FOREIGN KEY (round_id) REFERENCES rounds (round_id),
+    CONSTRAINT fk_hostage_events_player FOREIGN KEY (player_id) REFERENCES players (player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
+    ];
+
     private async Task ApplyMigrationsAsync(CancellationToken cancellationToken)
     {
-        var migrations = new[]
-        {
-            "ALTER TABLE players ADD COLUMN display_name VARCHAR(128) NULL AFTER steam_id64",
-            "ALTER TABLE kill_events ADD COLUMN dmg_health INT NULL AFTER assisted_flash",
-            "ALTER TABLE kill_events ADD COLUMN dmg_armor INT NULL AFTER dmg_health",
-            "ALTER TABLE map_sessions ADD COLUMN server_id BIGINT UNSIGNED NULL AFTER map_session_id"
-        };
-
         var cs = new MySqlConnectionStringBuilder(_connectionString) { Database = _databaseName }.ConnectionString;
         await using var connection = new MySqlConnection(cs);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        foreach (var migration in migrations)
+        await using (var createTable = connection.CreateCommand())
         {
+            createTable.CommandText = @"
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INT UNSIGNED NOT NULL,
+                    applied_at_utc DATETIME(6) NOT NULL,
+                    PRIMARY KEY (version)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+            await createTable.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var applied = new System.Collections.Generic.HashSet<int>();
+        await using (var selectCmd = connection.CreateCommand())
+        {
+            selectCmd.CommandText = "SELECT version FROM schema_migrations";
+            await using var reader = await selectCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                applied.Add(reader.GetInt32(0));
+        }
+
+        foreach (var (version, sql) in Migrations)
+        {
+            if (applied.Contains(version)) continue;
+
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = migration;
+            cmd.CommandText = sql;
+            cmd.CommandTimeout = 60;
             try
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (MySqlException ex) when (ex.Number == 1060)
+            catch (MySqlException ex) when (ex.Number is 1060 or 1050)
             {
-                _logger.LogDebug("[CS2Stats] Column already exists (ignoring): {Error}", ex.Message);
+                _logger.LogDebug("[CS2Stats] Migration {Version} skipped (object exists): {Error}", version, ex.Message);
             }
+
+            await using var markCmd = connection.CreateCommand();
+            markCmd.CommandText = "INSERT IGNORE INTO schema_migrations (version, applied_at_utc) VALUES (@v, @now)";
+            markCmd.Parameters.AddWithValue("@v", version);
+            markCmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+            await markCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("[CS2Stats] Migration {Version} applied", version);
         }
     }
 

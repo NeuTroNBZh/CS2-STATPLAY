@@ -50,7 +50,8 @@ public sealed class StatsCaptureService
                _buffer.RoundEnded.Count +
                _buffer.PlayerDeaths.Count +
                _buffer.PlayerActions.Count +
-               _buffer.PresenceSnapshots.Count >= _maxBufferedEvents;
+               _buffer.PresenceSnapshots.Count +
+               _buffer.HostageEvents.Count >= _maxBufferedEvents;
     }
 
     public void OnMapStart(string mapName)
@@ -99,7 +100,8 @@ public sealed class StatsCaptureService
                 (int)@event.Reason,
                 @event.Message,
                 playerCount,
-                roundTimeSeconds
+                roundTimeSeconds,
+                (int)@event.Winner
             ));
         }
     }
@@ -239,6 +241,12 @@ public sealed class StatsCaptureService
     public void OnMolotovDetonate(EventMolotovDetonate @event) =>
         AppendGrenadeAction(@event.Userid, "molotov");
 
+    public void OnHostageRescued(EventHostageRescued @event) =>
+        AppendHostageEvent(@event.Userid, "hostage_rescued");
+
+    public void OnHostageKilled(EventHostageKilled @event) =>
+        AppendHostageEvent(@event.Userid, "hostage_killed");
+
     public void CapturePresenceSnapshot()
     {
         if (!_modules.PresenceSnapshotsEnabled) return;
@@ -282,6 +290,7 @@ public sealed class StatsCaptureService
             drained.PlayerDeaths.AddRange(_buffer.PlayerDeaths);
             drained.PlayerActions.AddRange(_buffer.PlayerActions);
             drained.PresenceSnapshots.AddRange(_buffer.PresenceSnapshots);
+            drained.HostageEvents.AddRange(_buffer.HostageEvents);
 
             _buffer.SessionOpened.Clear();
             _buffer.SessionClosed.Clear();
@@ -290,6 +299,7 @@ public sealed class StatsCaptureService
             _buffer.PlayerDeaths.Clear();
             _buffer.PlayerActions.Clear();
             _buffer.PresenceSnapshots.Clear();
+            _buffer.HostageEvents.Clear();
 
             return drained;
         }
@@ -311,6 +321,23 @@ public sealed class StatsCaptureService
                 _currentMap,
                 actionType,
                 site.ToString(),
+                _roundNumber > 0 ? _roundNumber : null
+            ));
+        }
+    }
+
+    private void AppendHostageEvent(CCSPlayerController? player, string eventType)
+    {
+        if (!_modules.ObjectiveStatsEnabled) return;
+        var now = DateTime.UtcNow;
+        lock (_gate)
+        {
+            if (IsBufferFull()) return;
+            _buffer.HostageEvents.Add(new HostageEvent(
+                TryGetSteamId64(player),
+                now,
+                _currentMap,
+                eventType,
                 _roundNumber > 0 ? _roundNumber : null
             ));
         }
