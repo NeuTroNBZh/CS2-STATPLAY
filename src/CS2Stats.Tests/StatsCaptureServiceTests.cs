@@ -18,8 +18,8 @@ public class StatsCaptureServiceTests
         // Arrange & Act
         var service = new StatsCaptureService("de_mirage");
 
-            // Assert
-            Assert.NotNull(service);
+        // Assert
+        Assert.NotNull(service);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class StatsCaptureServiceTests
     }
 
     [Fact]
-        public async Task DrainBatch_IsThreadSafe()
+    public async Task DrainBatch_IsThreadSafe()
     {
         // Arrange
         const int taskCount = 5;

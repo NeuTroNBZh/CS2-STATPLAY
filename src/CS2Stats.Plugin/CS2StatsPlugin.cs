@@ -15,11 +15,11 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private readonly SemaphoreSlim _flushGate = new(1, 1);
 
     private StatsCaptureService _capture = new();
-    private IStatsWriter _writer = null!;
+    private volatile IStatsWriter _writer = null!;
     private AggregationService? _aggregationService;
     private int _flushIntervalSeconds = 15;
     private int _presenceIntervalSeconds = 10;
-    private bool _writerDisabledDueToDbAuth;
+    private volatile bool _writerDisabledDueToDbAuth;
 
     public override string ModuleName => "CS2 Stats";
     public override string ModuleVersion => "1.0.1";
@@ -59,13 +59,12 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         }
         else
         {
-            // Initialize database automatically (create DB, tables, procedures)
-            _ = InitializeDatabaseAsync();
-            _writer = BuildWriter();
-            _aggregationService = new AggregationService(BuildConnectionStringFromConfig(), Logger);
+            // Start as NoOp — upgraded to MySqlStatsWriter after DB init completes
+            _writer = new NoOpStatsWriter(Logger);
+            _ = InitializeAndEnableWriterAsync();
         }
 
-        _capture = new StatsCaptureService("de_mirage");
+        _capture = new StatsCaptureService(null, Config.Modules, Config.Sync);
 
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
 
@@ -123,6 +122,30 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
             return HookResult.Continue;
         });
 
+        RegisterEventHandler<EventHegrenadeDetonate>((@event, _) =>
+        {
+            _capture.OnHegrenadeDetonate(@event);
+            return HookResult.Continue;
+        });
+
+        RegisterEventHandler<EventFlashbangDetonate>((@event, _) =>
+        {
+            _capture.OnFlashbangDetonate(@event);
+            return HookResult.Continue;
+        });
+
+        RegisterEventHandler<EventSmokegrenadeDetonate>((@event, _) =>
+        {
+            _capture.OnSmokeGrenadeDetonate(@event);
+            return HookResult.Continue;
+        });
+
+        RegisterEventHandler<EventMolotovDetonate>((@event, _) =>
+        {
+            _capture.OnMolotovDetonate(@event);
+            return HookResult.Continue;
+        });
+
         AddTimer(_flushIntervalSeconds, () => _ = FlushAsync(), TimerFlags.REPEAT);
         AddTimer(_presenceIntervalSeconds, () => _capture.CapturePresenceSnapshot(), TimerFlags.REPEAT);
 
@@ -143,23 +166,14 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
 
     private async Task FlushAsync()
     {
-        if (_writerDisabledDueToDbAuth)
-        {
-            return;
-        }
+        if (_writerDisabledDueToDbAuth) return;
 
-        if (!await _flushGate.WaitAsync(0).ConfigureAwait(false))
-        {
-            return;
-        }
+        if (!await _flushGate.WaitAsync(0).ConfigureAwait(false)) return;
 
         try
         {
             var batch = _capture.DrainBatch();
-            if (batch.IsEmpty)
-            {
-                return;
-            }
+            if (batch.IsEmpty) return;
 
             await _writer.WriteBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
             if (_aggregationService != null)
@@ -185,6 +199,16 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         finally
         {
             _flushGate.Release();
+        }
+    }
+
+    private async Task InitializeAndEnableWriterAsync()
+    {
+        await InitializeDatabaseAsync().ConfigureAwait(false);
+        if (!_writerDisabledDueToDbAuth)
+        {
+            _writer = BuildWriter();
+            _aggregationService = new AggregationService(BuildConnectionStringFromConfig(), Logger);
         }
     }
 

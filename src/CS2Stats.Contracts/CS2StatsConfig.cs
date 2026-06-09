@@ -2,13 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace CS2Stats.Contracts;
 
-public sealed class CS2StatsConfig
-{
-    public required MySqlSettings MySql { get; init; }
-    public required StatsModulesSettings Modules { get; init; }
-    public required SyncSettings Sync { get; init; }
-}
-
 public sealed class MySqlSettings
 {
     [JsonPropertyName("host")]
