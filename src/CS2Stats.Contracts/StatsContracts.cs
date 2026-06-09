@@ -48,6 +48,7 @@ public sealed record PlayerDeathEvent(
     ulong? VictimSteamId64,
     ulong? AssisterSteamId64,
     DateTime OccurredAtUtc,
+    string MapName,
     string? Weapon,
     bool IsHeadshot,
     int? Hitgroup,
@@ -63,6 +64,7 @@ public sealed record PlayerDeathEvent(
 public sealed record PlayerActionEvent(
     ulong SteamId64,
     DateTime OccurredAtUtc,
+    string MapName,
     string ActionType,
     string? ActionValue,
     int? RoundNumber

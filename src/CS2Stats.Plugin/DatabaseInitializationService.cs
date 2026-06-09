@@ -594,7 +594,23 @@ BEGIN
         (SELECT COUNT(*) FROM player_action_events pae WHERE pae.map_session_id = p_map_session_id AND pae.player_id = p_player_id AND pae.action_type = 'bomb_planted'),
         (SELECT COUNT(*) FROM player_action_events pae WHERE pae.map_session_id = p_map_session_id AND pae.player_id = p_player_id AND pae.action_type = 'bomb_defused'),
         (SELECT COUNT(*) FROM player_action_events pae WHERE pae.map_session_id = p_map_session_id AND pae.player_id = p_player_id AND pae.action_type = 'round_mvp'),
-        (SELECT COUNT(DISTINCT r.round_id) FROM rounds r WHERE r.map_session_id = p_map_session_id),
+        (
+            SELECT COUNT(DISTINCT r.round_id)
+            FROM rounds r
+            WHERE r.map_session_id = p_map_session_id
+              AND (
+                EXISTS (
+                    SELECT 1 FROM kill_events ke
+                    WHERE ke.map_session_id = r.map_session_id
+                      AND (ke.attacker_player_id = p_player_id OR ke.victim_player_id = p_player_id OR ke.assister_player_id = p_player_id)
+                )
+                OR EXISTS (
+                    SELECT 1 FROM player_action_events pae
+                    WHERE pae.map_session_id = r.map_session_id
+                      AND pae.player_id = p_player_id
+                )
+              )
+        ),
         (
             SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6)))), 0)
             FROM player_sessions ps

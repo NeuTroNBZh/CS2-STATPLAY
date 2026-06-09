@@ -262,7 +262,7 @@ INSERT INTO rounds (
     {
         foreach (var death in deaths)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, death.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, death.MapName, death.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
             var attackerId = await EnsureOptionalPlayerIdAsync(connection, tx, death.AttackerSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
             var victimId = await EnsureOptionalPlayerIdAsync(connection, tx, death.VictimSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
             var assisterId = await EnsureOptionalPlayerIdAsync(connection, tx, death.AssisterSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
@@ -307,7 +307,7 @@ INSERT INTO kill_events (
     {
         foreach (var action in actions)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, action.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, action.MapName, action.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
             var playerId = await EnsurePlayerIdAsync(connection, tx, action.SteamId64, action.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
 
             ulong? roundId = null;

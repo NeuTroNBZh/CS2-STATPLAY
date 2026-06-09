@@ -147,11 +147,14 @@ public sealed class StatsCaptureService
     public void OnPlayerDeath(EventPlayerDeath @event)
     {
         if (!_modules.KdaEnabled) return;
+        string map;
+        lock (_gate) { map = _currentMap; }
         var death = new PlayerDeathEvent(
             TryGetSteamId64(@event.Attacker),
             TryGetSteamId64(@event.Userid),
             TryGetSteamId64(@event.Assister),
             DateTime.UtcNow,
+            map,
             @event.Weapon,
             @event.Headshot,
             @event.Hitgroup,
@@ -184,6 +187,7 @@ public sealed class StatsCaptureService
             _buffer.PlayerActions.Add(new PlayerActionEvent(
                 steamId.Value,
                 now,
+                _currentMap,
                 "weapon_fire",
                 @event.Weapon,
                 _roundNumber > 0 ? _roundNumber : null
@@ -210,6 +214,7 @@ public sealed class StatsCaptureService
             _buffer.PlayerActions.Add(new PlayerActionEvent(
                 steamId.Value,
                 now,
+                _currentMap,
                 "round_mvp",
                 $"reason={@event.Reason};value={@event.Value}",
                 _roundNumber > 0 ? _roundNumber : null
@@ -298,6 +303,7 @@ public sealed class StatsCaptureService
             _buffer.PlayerActions.Add(new PlayerActionEvent(
                 steamId.Value,
                 now,
+                _currentMap,
                 actionType,
                 site.ToString(),
                 _roundNumber > 0 ? _roundNumber : null
@@ -318,6 +324,7 @@ public sealed class StatsCaptureService
             _buffer.PlayerActions.Add(new PlayerActionEvent(
                 steamId.Value,
                 now,
+                _currentMap,
                 "grenade_detonation",
                 grenadeType,
                 _roundNumber > 0 ? _roundNumber : null

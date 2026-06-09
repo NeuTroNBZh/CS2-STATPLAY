@@ -21,6 +21,10 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private int _presenceIntervalSeconds = 10;
     private volatile bool _writerDisabledDueToDbAuth;
 
+    private DateTime _reconnectAfter = DateTime.MinValue;
+    private int _reconnectDelaySeconds = 5;
+    private bool _pendingReconnect;
+
     public override string ModuleName => "CS2 Stats";
     public override string ModuleVersion => "1.0.3";
     public override string ModuleAuthor => "NeuTroNBZh";
@@ -172,10 +176,25 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
 
         try
         {
+            if (_pendingReconnect && DateTime.UtcNow >= _reconnectAfter)
+            {
+                Logger.LogInformation("[CS2Stats] Attempting MySQL reconnect after backoff...");
+                await InitializeAndEnableWriterAsync().ConfigureAwait(false);
+                if (!_pendingReconnect)
+                    Logger.LogInformation("[CS2Stats] MySQL reconnect successful.");
+            }
+
             var batch = _capture.DrainBatch();
             if (batch.IsEmpty) return;
 
             await _writer.WriteBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
+
+            if (_pendingReconnect)
+            {
+                _pendingReconnect = false;
+                _reconnectDelaySeconds = 5;
+            }
+
             if (_aggregationService != null)
                 _ = _aggregationService.RefreshAllStatsAsync(CancellationToken.None);
         }
@@ -194,7 +213,15 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error while flushing stats batch");
+            _pendingReconnect = true;
+            _reconnectAfter = DateTime.UtcNow.AddSeconds(_reconnectDelaySeconds);
+            _writer = new NoOpStatsWriter(Logger);
+
+            Logger.LogError(ex,
+                "[CS2Stats] Error during flush. Will retry reconnect in {Delay}s.",
+                _reconnectDelaySeconds);
+
+            _reconnectDelaySeconds = Math.Min(_reconnectDelaySeconds * 2, 120);
         }
         finally
         {
@@ -208,7 +235,9 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         if (!_writerDisabledDueToDbAuth)
         {
             _writer = BuildWriter();
-            _aggregationService = new AggregationService(BuildConnectionStringFromConfig(), Logger);
+            _aggregationService = new AggregationService(BuildConnectionString(includeDatabase: true), Logger);
+            _pendingReconnect = false;
+            _reconnectDelaySeconds = 5;
         }
     }
 
@@ -228,16 +257,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
                 return;
             }
 
-            var connectionString = new MySqlConnector.MySqlConnectionStringBuilder
-            {
-                Server = Config.MySql.Host,
-                Port = (uint)Config.MySql.Port,
-                UserID = Config.MySql.Username,
-                Password = Config.MySql.Password,
-                SslMode = Config.MySql.SslRequired ? MySqlConnector.MySqlSslMode.Required : MySqlConnector.MySqlSslMode.None,
-                AllowUserVariables = true
-            }.ConnectionString;
-
+            var connectionString = BuildConnectionString(includeDatabase: false);
             var initService = new DatabaseInitializationService(connectionString, Config.MySql.Database, Logger);
             await initService.InitializeAsync(CancellationToken.None).ConfigureAwait(false);
         }
@@ -285,21 +305,23 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         }
     }
 
-    private string BuildConnectionStringFromConfig()
+    private string BuildConnectionString(bool includeDatabase)
     {
-        return new MySqlConnector.MySqlConnectionStringBuilder
+        var builder = new MySqlConnector.MySqlConnectionStringBuilder
         {
             Server = Config.MySql.Host,
             Port = (uint)Config.MySql.Port,
             UserID = Config.MySql.Username,
             Password = Config.MySql.Password,
-            Database = Config.MySql.Database,
             SslMode = Config.MySql.SslRequired
                 ? MySqlConnector.MySqlSslMode.Required
                 : MySqlConnector.MySqlSslMode.None,
             AllowUserVariables = true,
             ConnectionTimeout = 15,
             DefaultCommandTimeout = 30
-        }.ConnectionString;
+        };
+        if (includeDatabase)
+            builder.Database = Config.MySql.Database;
+        return builder.ConnectionString;
     }
 }
