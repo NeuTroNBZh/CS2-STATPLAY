@@ -1,4 +1,7 @@
 {
+  "server": {
+    "name": "my-server-1"
+  },
   "mySql": {
     "host": "127.0.0.1",
     "port": 3306,
@@ -10,16 +13,18 @@
   "modules": {
     "sessionTrackingEnabled": true,
     "kdaEnabled": true,
-    "headshotEnabled": true,
     "weaponFireEnabled": true,
     "grenadeStatsEnabled": true,
     "objectiveStatsEnabled": true,
-    "presenceSnapshotsEnabled": true,
-    "matchHistoryEnabled": false
+    "presenceSnapshotsEnabled": true
   },
   "sync": {
     "flushIntervalSeconds": 15,
     "presenceSnapshotIntervalSeconds": 10,
     "maxBufferedEvents": 5000
+  },
+  "webhook": {
+    "url": "",
+    "killsMilestone": 100
   }
 }
