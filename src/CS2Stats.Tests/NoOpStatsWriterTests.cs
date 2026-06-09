@@ -6,10 +6,6 @@ using Xunit;
 
 namespace CS2Stats.Tests;
 
-/// <summary>
-/// Tests pour valider que NoOpStatsWriter fonctionne correctement
-/// (fallback quand MySQL n'est pas disponible).
-/// </summary>
 public class NoOpStatsWriterTests
 {
     private readonly Mock<ILogger> _mockLogger;

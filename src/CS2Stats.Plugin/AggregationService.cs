@@ -4,11 +4,6 @@ using MySqlConnector;
 
 namespace CS2Stats.Plugin;
 
-/// <summary>
-/// Service to refresh aggregated statistics tables from raw event data.
-/// Calls stored procedures to recalculate K/D/A, headshots, and other stats
-/// at different aggregation levels (lifetime, session, per-map).
-/// </summary>
 public sealed class AggregationService
 {
     private readonly string _connectionString;
@@ -20,9 +15,6 @@ public sealed class AggregationService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Refresh lifetime stats for all players or a specific player.
-    /// </summary>
     public async Task RefreshPlayerLifetimeStatsAsync(ulong? playerSteamId64 = null, CancellationToken cancellationToken = default)
     {
         try
@@ -36,7 +28,6 @@ public sealed class AggregationService
 
             if (playerSteamId64.HasValue)
             {
-                // Find player_id from steam_id64
                 var playerId = await GetPlayerIdBySteamIdAsync(connection, playerSteamId64.Value, cancellationToken);
                 if (playerId.HasValue)
                 {
@@ -54,7 +45,8 @@ public sealed class AggregationService
             }
 
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            _logger.LogInformation("[CS2Stats] Refreshed lifetime stats for player {SteamId}", playerSteamId64 ?? 0);
+            _logger.LogInformation("[CS2Stats] Refreshed lifetime stats for {Target}",
+                playerSteamId64.HasValue ? $"player {playerSteamId64.Value}" : "all players");
         }
         catch (Exception ex)
         {
@@ -62,9 +54,6 @@ public sealed class AggregationService
         }
     }
 
-    /// <summary>
-    /// Refresh session-level stats for a specific player session.
-    /// </summary>
     public async Task RefreshPlayerSessionStatsAsync(ulong playerSteamId64, DateTime sessionStart, CancellationToken cancellationToken = default)
     {
         try
@@ -72,7 +61,6 @@ public sealed class AggregationService
             await using var connection = new MySqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            // Find player_session_id
             var playerSessionId = await GetPlayerSessionIdAsync(connection, playerSteamId64, sessionStart, cancellationToken);
             if (!playerSessionId.HasValue)
             {
@@ -94,9 +82,6 @@ public sealed class AggregationService
         }
     }
 
-    /// <summary>
-    /// Refresh per-map stats for a specific player and map session.
-    /// </summary>
     public async Task RefreshPlayerMapStatsAsync(ulong playerSteamId64, ulong mapSessionId, CancellationToken cancellationToken = default)
     {
         try
@@ -104,7 +89,6 @@ public sealed class AggregationService
             await using var connection = new MySqlConnection(_connectionString);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            // Find player_id
             var playerId = await GetPlayerIdBySteamIdAsync(connection, playerSteamId64, cancellationToken);
             if (!playerId.HasValue)
             {
@@ -127,10 +111,6 @@ public sealed class AggregationService
         }
     }
 
-    /// <summary>
-    /// Refresh stats for all players after a map ends.
-    /// Useful to run after map end or on a scheduled basis.
-    /// </summary>
     public async Task RefreshAllStatsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -149,9 +129,6 @@ public sealed class AggregationService
         }
     }
 
-    /// <summary>
-    /// Helper: Get player_id from Steam ID.
-    /// </summary>
     private static async Task<ulong?> GetPlayerIdBySteamIdAsync(MySqlConnection connection, ulong steamId64, CancellationToken cancellationToken = default)
     {
         await using var cmd = connection.CreateCommand();
@@ -162,9 +139,6 @@ public sealed class AggregationService
         return result != null ? (ulong?)Convert.ToUInt64(result) : null;
     }
 
-    /// <summary>
-    /// Helper: Get player_session_id for a player and session start time.
-    /// </summary>
     private static async Task<ulong?> GetPlayerSessionIdAsync(MySqlConnection connection, ulong playerSteamId64, DateTime sessionStart, CancellationToken cancellationToken = default)
     {
         await using var cmd = connection.CreateCommand();
@@ -184,9 +158,6 @@ public sealed class AggregationService
         return result != null ? (ulong?)Convert.ToUInt64(result) : null;
     }
 
-    /// <summary>
-    /// Refresh session stats for all closed sessions that don't have a stats row yet.
-    /// </summary>
     public async Task RefreshPendingSessionStatsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -226,9 +197,6 @@ public sealed class AggregationService
         }
     }
 
-    /// <summary>
-    /// Refresh map stats for all (player, map_session) combinations that don't have a map stats row yet.
-    /// </summary>
     public async Task RefreshPendingMapStatsAsync(CancellationToken cancellationToken = default)
     {
         try

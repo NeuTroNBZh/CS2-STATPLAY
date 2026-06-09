@@ -31,9 +31,6 @@ public sealed class StatsModulesSettings
     [JsonPropertyName("kdaEnabled")]
     public bool KdaEnabled { get; set; } = true;
 
-    [JsonPropertyName("headshotEnabled")]
-    public bool HeadshotEnabled { get; set; } = true;
-
     [JsonPropertyName("weaponFireEnabled")]
     public bool WeaponFireEnabled { get; set; } = true;
 
@@ -45,9 +42,6 @@ public sealed class StatsModulesSettings
 
     [JsonPropertyName("presenceSnapshotsEnabled")]
     public bool PresenceSnapshotsEnabled { get; set; } = true;
-
-    [JsonPropertyName("matchHistoryEnabled")]
-    public bool MatchHistoryEnabled { get; set; } = false;
 }
 
 public sealed class SyncSettings

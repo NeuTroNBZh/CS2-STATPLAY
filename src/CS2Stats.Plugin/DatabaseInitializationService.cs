@@ -4,10 +4,6 @@ using System.Text;
 
 namespace CS2Stats.Plugin;
 
-/// <summary>
-/// Service to initialize and migrate the CS2Stats database automatically.
-/// Creates the database, tables, and stored procedures on first plugin load.
-/// </summary>
 public sealed class DatabaseInitializationService
 {
     private readonly string _connectionString;
@@ -21,9 +17,6 @@ public sealed class DatabaseInitializationService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Initialize the database: create DB, tables, and procedures if they don't exist.
-    /// </summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -31,15 +24,12 @@ public sealed class DatabaseInitializationService
             _logger.LogInformation("[CS2Stats] Starting database initialization...");
             _logger.LogInformation("[CS2Stats] Target database: {DatabaseName}", _databaseName);
 
-            // Step 1: Create database if not exists
             await CreateDatabaseAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Database ready: {DatabaseName}", _databaseName);
 
-            // Step 2: Create tables
             await CreateTablesAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Tables initialized");
 
-            // Step 3: Create stored procedures
             await CreateStoredProceduresAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Stored procedures created");
 
@@ -52,14 +42,11 @@ public sealed class DatabaseInitializationService
         }
     }
 
-    /// <summary>
-    /// Create the database if it doesn't exist.
-    /// </summary>
     private async Task CreateDatabaseAsync(CancellationToken cancellationToken)
     {
         var connectionStringBuilder = new MySqlConnectionStringBuilder(_connectionString)
         {
-            Database = "" // Connect to MySQL without specifying a database
+            Database = ""
         };
 
         try
@@ -107,35 +94,22 @@ public sealed class DatabaseInitializationService
         return ex.Number is 1044 or 1227 or 1142;
     }
 
-    /// <summary>
-    /// Create all required tables.
-    /// </summary>
     private async Task CreateTablesAsync(CancellationToken cancellationToken)
     {
         var schema = GetBaselineSchema();
         await ExecuteSqlScriptAsync(schema, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Create all required stored procedures.
-    /// </summary>
     private async Task CreateStoredProceduresAsync(CancellationToken cancellationToken)
     {
         var procedures = GetStoredProceduresScript();
         await ExecuteSqlScriptAsync(procedures, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Execute a SQL script (can contain multiple statements).
-    /// Note: This is a simplified version; for production, use proper SQL parsing.
-    /// </summary>
     private async Task ExecuteSqlScriptAsync(string script, CancellationToken cancellationToken)
     {
-        await using var connection = new MySqlConnection(_connectionString);
-        connection.ConnectionString = new MySqlConnectionStringBuilder(_connectionString)
-        {
-            Database = _databaseName
-        }.ConnectionString;
+        var cs = new MySqlConnectionStringBuilder(_connectionString) { Database = _databaseName }.ConnectionString;
+        await using var connection = new MySqlConnection(cs);
 
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
@@ -149,9 +123,8 @@ public sealed class DatabaseInitializationService
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (MySqlException ex) when (ex.Number == 1050) // Table already exists
+            catch (MySqlException ex) when (ex.Number == 1050)
             {
-                // Ignore "table already exists" errors
                 _logger.LogDebug("[CS2Stats] Table or object already exists (ignoring): {Error}", ex.Message);
             }
         }
@@ -210,9 +183,6 @@ public sealed class DatabaseInitializationService
         return statements;
     }
 
-    /// <summary>
-    /// Get the baseline schema SQL script.
-    /// </summary>
     private static string GetBaselineSchema()
     {
         return @"
@@ -437,9 +407,6 @@ CREATE TABLE IF NOT EXISTS presence_snapshot_players (
 ";
     }
 
-    /// <summary>
-    /// Get the stored procedures SQL script.
-    /// </summary>
     private static string GetStoredProceduresScript()
     {
         return @"

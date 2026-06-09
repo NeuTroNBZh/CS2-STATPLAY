@@ -4,12 +4,6 @@ using Xunit;
 
 namespace CS2Stats.Tests;
 
-/// <summary>
-/// Tests pour valider que StatsCaptureService bufférise correctement les événements.
-/// NOTE: Les tests qui appellent les APIs CS2 (Utilities.GetPlayers, Server.MapName) sont exécutés
-/// uniquement sur un serveur CS2 réel où la DLL counterstrikesharp est disponible.
-/// Ces tests unitaires se concentrent sur le buffering et la structure des données.
-/// </summary>
 public class StatsCaptureServiceTests
 {
     [Fact]
