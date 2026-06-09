@@ -76,7 +76,7 @@ public sealed class MySqlStatsWriter : IStatsWriter
             var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, opened.MapName, opened.ConnectedAtUtc, cancellationToken).ConfigureAwait(false);
             mapCache[opened.MapName] = mapSessionId;
 
-            var playerId = await EnsurePlayerIdAsync(connection, tx, opened.SteamId64, opened.ConnectedAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
+            var playerId = await EnsurePlayerIdAsync(connection, tx, opened.SteamId64, opened.ConnectedAtUtc, playerCache, cancellationToken, opened.DisplayName).ConfigureAwait(false);
 
             await using (var closePrev = new MySqlCommand(@"
 UPDATE player_sessions
@@ -271,11 +271,11 @@ INSERT INTO rounds (
 INSERT INTO kill_events (
     map_session_id, round_id, occurred_at_utc, attacker_player_id, victim_player_id, assister_player_id,
     weapon_name, is_headshot, hitgroup, penetrated, noscope, thrusmoke, distance,
-    attacker_blind, attacker_in_air, assisted_flash, created_at_utc
+    attacker_blind, attacker_in_air, assisted_flash, dmg_health, dmg_armor, created_at_utc
 ) VALUES (
     @map_session_id, NULL, @occurred_at_utc, @attacker_player_id, @victim_player_id, @assister_player_id,
     @weapon_name, @is_headshot, @hitgroup, @penetrated, @noscope, @thrusmoke, @distance,
-    @attacker_blind, @attacker_in_air, @assisted_flash, @created_at_utc
+    @attacker_blind, @attacker_in_air, @assisted_flash, @dmg_health, @dmg_armor, @created_at_utc
 )", connection, tx);
 
             cmd.Parameters.AddWithValue("@map_session_id", mapSessionId);
@@ -293,6 +293,8 @@ INSERT INTO kill_events (
             cmd.Parameters.AddWithValue("@attacker_blind", death.AttackerBlind);
             cmd.Parameters.AddWithValue("@attacker_in_air", death.AttackerInAir);
             cmd.Parameters.AddWithValue("@assisted_flash", death.AssistedFlash);
+            cmd.Parameters.AddWithValue("@dmg_health", death.DmgHealth);
+            cmd.Parameters.AddWithValue("@dmg_armor", death.DmgArmor);
             cmd.Parameters.AddWithValue("@created_at_utc", death.OccurredAtUtc);
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -393,22 +395,36 @@ INSERT INTO presence_snapshot_players (
         MySqlConnection connection, MySqlTransaction tx,
         ulong steamId64, DateTime atUtc,
         Dictionary<ulong, ulong> playerCache,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? displayName = null)
     {
         if (playerCache.TryGetValue(steamId64, out var cachedId)) return cachedId;
 
-        await using (var upsert = new MySqlCommand(@"
-INSERT INTO players (
+        var upsertSql = displayName != null
+            ? @"INSERT INTO players (
+    steam_id64, display_name, first_seen_utc, last_seen_utc, created_at_utc, updated_at_utc
+) VALUES (
+    @steam_id64, @display_name, @at_utc, @at_utc, @at_utc, @at_utc
+)
+ON DUPLICATE KEY UPDATE
+    display_name = VALUES(display_name),
+    last_seen_utc = VALUES(last_seen_utc),
+    updated_at_utc = VALUES(updated_at_utc)"
+            : @"INSERT INTO players (
     steam_id64, first_seen_utc, last_seen_utc, created_at_utc, updated_at_utc
 ) VALUES (
     @steam_id64, @at_utc, @at_utc, @at_utc, @at_utc
 )
 ON DUPLICATE KEY UPDATE
     last_seen_utc = VALUES(last_seen_utc),
-    updated_at_utc = VALUES(updated_at_utc)", connection, tx))
+    updated_at_utc = VALUES(updated_at_utc)";
+
+        await using (var upsert = new MySqlCommand(upsertSql, connection, tx))
         {
             upsert.Parameters.AddWithValue("@steam_id64", steamId64);
             upsert.Parameters.AddWithValue("@at_utc", atUtc);
+            if (displayName != null)
+                upsert.Parameters.AddWithValue("@display_name", displayName);
             await upsert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 

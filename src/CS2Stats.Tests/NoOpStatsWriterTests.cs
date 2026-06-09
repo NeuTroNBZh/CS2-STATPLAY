@@ -38,8 +38,8 @@ public class NoOpStatsWriterTests
     public async Task WriteBatchAsync_MultipleCallsWork()
     {
         // Arrange
-        var batch1 = new StatsBatch { SessionOpened = { new(123, DateTime.UtcNow, "de_mirage", 10.0) } };
-        var batch2 = new StatsBatch { SessionOpened = { new(456, DateTime.UtcNow, "de_inferno", 20.0) } };
+        var batch1 = new StatsBatch { SessionOpened = { new(123, DateTime.UtcNow, "de_mirage", 10.0, null) } };
+        var batch2 = new StatsBatch { SessionOpened = { new(456, DateTime.UtcNow, "de_inferno", 20.0, null) } };
 
         // Act
         await _writer.WriteBatchAsync(batch1, CancellationToken.None);

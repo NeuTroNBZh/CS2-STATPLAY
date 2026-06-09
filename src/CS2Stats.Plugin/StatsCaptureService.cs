@@ -107,11 +107,13 @@ public sealed class StatsCaptureService
     public void OnPlayerConnectFull(EventPlayerConnectFull @event)
     {
         if (!_modules.SessionTrackingEnabled) return;
-        var steamId = TryGetSteamId64(@event.Userid);
+        var player = @event.Userid;
+        var steamId = TryGetSteamId64(player);
         if (!steamId.HasValue) return;
 
         var now = DateTime.UtcNow;
         var serverTime = TryGetServerCurrentTime();
+        var displayName = TryGetPlayerName(player);
         lock (_gate)
         {
             if (IsBufferFull()) return;
@@ -119,7 +121,8 @@ public sealed class StatsCaptureService
                 steamId.Value,
                 now,
                 _currentMap,
-                serverTime
+                serverTime,
+                displayName
             ));
         }
     }
@@ -164,7 +167,9 @@ public sealed class StatsCaptureService
             @event.Distance,
             @event.Attackerblind,
             @event.Attackerinair,
-            @event.Assistedflash
+            @event.Assistedflash,
+            @event.DmgHealth > 0 ? (int?)@event.DmgHealth : null,
+            @event.DmgArmor > 0 ? (int?)@event.DmgArmor : null
         );
 
         lock (_gate)
@@ -336,6 +341,13 @@ public sealed class StatsCaptureService
     {
         if (player is null) return null;
         try { return player.AuthorizedSteamID?.SteamId64; }
+        catch { return null; }
+    }
+
+    private static string? TryGetPlayerName(CCSPlayerController? player)
+    {
+        if (player is null) return null;
+        try { return string.IsNullOrWhiteSpace(player.PlayerName) ? null : player.PlayerName; }
         catch { return null; }
     }
 

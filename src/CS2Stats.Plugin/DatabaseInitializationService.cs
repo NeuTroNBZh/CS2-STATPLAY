@@ -30,6 +30,9 @@ public sealed class DatabaseInitializationService
             await CreateTablesAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Tables initialized");
 
+            await ApplyMigrationsAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("[CS2Stats] Migrations applied");
+
             await CreateStoredProceduresAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Stored procedures created");
 
@@ -92,6 +95,34 @@ public sealed class DatabaseInitializationService
     {
         // 1044: access denied for database, 1227: command denied, 1142: table/command denied
         return ex.Number is 1044 or 1227 or 1142;
+    }
+
+    private async Task ApplyMigrationsAsync(CancellationToken cancellationToken)
+    {
+        var migrations = new[]
+        {
+            "ALTER TABLE players ADD COLUMN display_name VARCHAR(128) NULL AFTER steam_id64",
+            "ALTER TABLE kill_events ADD COLUMN dmg_health INT NULL AFTER assisted_flash",
+            "ALTER TABLE kill_events ADD COLUMN dmg_armor INT NULL AFTER dmg_health"
+        };
+
+        var cs = new MySqlConnectionStringBuilder(_connectionString) { Database = _databaseName }.ConnectionString;
+        await using var connection = new MySqlConnection(cs);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var migration in migrations)
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = migration;
+            try
+            {
+                await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (MySqlException ex) when (ex.Number == 1060)
+            {
+                _logger.LogDebug("[CS2Stats] Column already exists (ignoring): {Error}", ex.Message);
+            }
+        }
     }
 
     private async Task CreateTablesAsync(CancellationToken cancellationToken)
@@ -189,6 +220,7 @@ public sealed class DatabaseInitializationService
 CREATE TABLE IF NOT EXISTS players (
     player_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     steam_id64 BIGINT UNSIGNED NOT NULL,
+    display_name VARCHAR(128) NULL,
     first_seen_utc DATETIME(6) NOT NULL,
     last_seen_utc DATETIME(6) NOT NULL,
     created_at_utc DATETIME(6) NOT NULL,
@@ -342,6 +374,8 @@ CREATE TABLE IF NOT EXISTS kill_events (
     attacker_blind TINYINT(1) NOT NULL DEFAULT 0,
     attacker_in_air TINYINT(1) NOT NULL DEFAULT 0,
     assisted_flash TINYINT(1) NOT NULL DEFAULT 0,
+    dmg_health INT NULL,
+    dmg_armor INT NULL,
     created_at_utc DATETIME(6) NOT NULL,
     PRIMARY KEY (kill_event_id),
     KEY ix_kill_events_map_occurred (map_session_id, occurred_at_utc),

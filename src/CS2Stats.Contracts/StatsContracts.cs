@@ -14,7 +14,8 @@ public sealed record PlayerSessionOpened(
     ulong SteamId64,
     DateTime ConnectedAtUtc,
     string MapName,
-    double? ServerCurrentTimeSeconds
+    double? ServerCurrentTimeSeconds,
+    string? DisplayName
 );
 
 public sealed record PlayerSessionClosed(
@@ -58,7 +59,9 @@ public sealed record PlayerDeathEvent(
     float? Distance,
     bool AttackerBlind,
     bool AttackerInAir,
-    bool AssistedFlash
+    bool AssistedFlash,
+    int? DmgHealth,
+    int? DmgArmor
 );
 
 public sealed record PlayerActionEvent(
