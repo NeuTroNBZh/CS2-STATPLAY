@@ -43,7 +43,7 @@ public sealed class DatabaseInitializationService
             await CreateStoredProceduresAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("[CS2Stats] Stored procedures created");
 
-            _logger.LogInformation("[CS2Stats] Database initialization completed successfully ✓");
+            _logger.LogInformation("[CS2Stats] Database initialization completed successfully");
         }
         catch (Exception ex)
         {
@@ -443,9 +443,8 @@ CREATE TABLE IF NOT EXISTS presence_snapshot_players (
     private static string GetStoredProceduresScript()
     {
         return @"
-DROP PROCEDURE IF EXISTS sp_refresh_player_lifetime_stats;
 DELIMITER $$
-CREATE PROCEDURE sp_refresh_player_lifetime_stats(
+CREATE OR REPLACE PROCEDURE sp_refresh_player_lifetime_stats(
     IN p_player_id BIGINT UNSIGNED
 )
 BEGIN
@@ -519,9 +518,8 @@ BEGIN
 END$$
 DELIMITER ;
 
-DROP PROCEDURE IF EXISTS sp_refresh_player_session_stats;
 DELIMITER $$
-CREATE PROCEDURE sp_refresh_player_session_stats(
+CREATE OR REPLACE PROCEDURE sp_refresh_player_session_stats(
     IN p_player_session_id BIGINT UNSIGNED
 )
 BEGIN
@@ -589,9 +587,8 @@ BEGIN
 END$$
 DELIMITER ;
 
-DROP PROCEDURE IF EXISTS sp_refresh_player_map_stats;
 DELIMITER $$
-CREATE PROCEDURE sp_refresh_player_map_stats(
+CREATE OR REPLACE PROCEDURE sp_refresh_player_map_stats(
     IN p_player_id BIGINT UNSIGNED,
     IN p_map_session_id BIGINT UNSIGNED
 )
