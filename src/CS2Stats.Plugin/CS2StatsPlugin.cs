@@ -17,6 +17,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private StatsCaptureService _capture = null!;
     private volatile IStatsWriter _writer = null!;
     private AggregationService? _aggregationService;
+    private StatsCommandService? _statsCommands;
     private int _flushIntervalSeconds = 15;
     private int _presenceIntervalSeconds = 10;
     private volatile bool _writerDisabledDueToDbAuth;
@@ -150,6 +151,10 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
             return HookResult.Continue;
         });
 
+        AddCommand("css_stats", "Affiche les stats d'un joueur", OnStatsCommand);
+        AddCommand("css_rank", "Affiche ton classement", OnRankCommand);
+        AddCommand("css_top", "Affiche le top 5", OnTopCommand);
+
         AddTimer(_flushIntervalSeconds, () => _ = FlushAsync(), TimerFlags.REPEAT);
         AddTimer(_presenceIntervalSeconds, () => _capture.CapturePresenceSnapshot(), TimerFlags.REPEAT);
 
@@ -166,6 +171,54 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private void OnMapStart(string mapName)
     {
         _capture.OnMapStart(mapName);
+    }
+
+    private void OnStatsCommand(CCSPlayerController? player, CounterStrikeSharp.API.Modules.Commands.CommandInfo info)
+    {
+        if (player == null) return;
+        if (_statsCommands == null)
+        {
+            player.PrintToChat($" {CounterStrikeSharp.API.Modules.Utils.ChatColors.Red}[CS2Stats] Base de données non disponible.");
+            return;
+        }
+
+        CCSPlayerController target = player;
+        if (info.ArgCount > 1)
+        {
+            var search = info.GetArg(1);
+            var match = CounterStrikeSharp.API.Utilities.GetPlayers()
+                .Find(p => p.PlayerName?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+            if (match == null)
+            {
+                player.PrintToChat($" {CounterStrikeSharp.API.Modules.Utils.ChatColors.Grey}[CS2Stats] Joueur '{search}' introuvable.");
+                return;
+            }
+            target = match;
+        }
+
+        _ = _statsCommands.ShowStatsAsync(player, target);
+    }
+
+    private void OnRankCommand(CCSPlayerController? player, CounterStrikeSharp.API.Modules.Commands.CommandInfo info)
+    {
+        if (player == null) return;
+        if (_statsCommands == null)
+        {
+            player.PrintToChat($" {CounterStrikeSharp.API.Modules.Utils.ChatColors.Red}[CS2Stats] Base de données non disponible.");
+            return;
+        }
+        _ = _statsCommands.ShowRankAsync(player);
+    }
+
+    private void OnTopCommand(CCSPlayerController? player, CounterStrikeSharp.API.Modules.Commands.CommandInfo info)
+    {
+        if (player == null) return;
+        if (_statsCommands == null)
+        {
+            player.PrintToChat($" {CounterStrikeSharp.API.Modules.Utils.ChatColors.Red}[CS2Stats] Base de données non disponible.");
+            return;
+        }
+        _ = _statsCommands.ShowTopAsync(player);
     }
 
     private async Task FlushAsync()
@@ -235,7 +288,9 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
         if (!_writerDisabledDueToDbAuth)
         {
             _writer = BuildWriter();
-            _aggregationService = new AggregationService(BuildConnectionString(includeDatabase: true), Logger);
+            var cs = BuildConnectionString(includeDatabase: true);
+            _aggregationService = new AggregationService(cs, Logger);
+            _statsCommands = new StatsCommandService(cs, Logger);
             _pendingReconnect = false;
             _reconnectDelaySeconds = 5;
         }
