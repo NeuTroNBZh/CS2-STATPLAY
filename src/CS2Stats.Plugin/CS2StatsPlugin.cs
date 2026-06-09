@@ -351,7 +351,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
                 return new NoOpStatsWriter(Logger);
             }
 
-            return new MySqlStatsWriter(Config.MySql, Logger);
+            return new MySqlStatsWriter(Config.MySql, Logger, Config.Server.Name);
         }
         catch (Exception ex)
         {

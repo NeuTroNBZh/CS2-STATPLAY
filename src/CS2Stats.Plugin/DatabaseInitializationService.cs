@@ -103,7 +103,8 @@ public sealed class DatabaseInitializationService
         {
             "ALTER TABLE players ADD COLUMN display_name VARCHAR(128) NULL AFTER steam_id64",
             "ALTER TABLE kill_events ADD COLUMN dmg_health INT NULL AFTER assisted_flash",
-            "ALTER TABLE kill_events ADD COLUMN dmg_armor INT NULL AFTER dmg_health"
+            "ALTER TABLE kill_events ADD COLUMN dmg_armor INT NULL AFTER dmg_health",
+            "ALTER TABLE map_sessions ADD COLUMN server_id BIGINT UNSIGNED NULL AFTER map_session_id"
         };
 
         var cs = new MySqlConnectionStringBuilder(_connectionString) { Database = _databaseName }.ConnectionString;
@@ -230,8 +231,20 @@ CREATE TABLE IF NOT EXISTS players (
     KEY ix_players_last_seen_utc (last_seen_utc)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS servers (
+    server_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    server_name VARCHAR(128) NOT NULL,
+    first_seen_utc DATETIME(6) NOT NULL,
+    last_seen_utc DATETIME(6) NOT NULL,
+    created_at_utc DATETIME(6) NOT NULL,
+    updated_at_utc DATETIME(6) NOT NULL,
+    PRIMARY KEY (server_id),
+    UNIQUE KEY uq_servers_name (server_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS map_sessions (
     map_session_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    server_id BIGINT UNSIGNED NULL,
     map_name VARCHAR(128) NOT NULL,
     started_at_utc DATETIME(6) NOT NULL,
     ended_at_utc DATETIME(6) NULL,
@@ -242,7 +255,10 @@ CREATE TABLE IF NOT EXISTS map_sessions (
     updated_at_utc DATETIME(6) NOT NULL,
     PRIMARY KEY (map_session_id),
     KEY ix_map_sessions_map_started (map_name, started_at_utc),
-    KEY ix_map_sessions_started_at_utc (started_at_utc)
+    KEY ix_map_sessions_started_at_utc (started_at_utc),
+    KEY ix_map_sessions_server (server_id),
+    CONSTRAINT fk_map_sessions_server FOREIGN KEY (server_id)
+        REFERENCES servers (server_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS player_sessions (

@@ -14,9 +14,12 @@ public sealed class MySqlStatsWriter : IStatsWriter
     private readonly string _connectionString;
     private readonly ILogger _logger;
 
-    public MySqlStatsWriter(MySqlSettings settings, ILogger logger)
+    private readonly string? _serverName;
+
+    public MySqlStatsWriter(MySqlSettings settings, ILogger logger, string? serverName = null)
     {
         _logger = logger;
+        _serverName = serverName;
         var builder = new MySqlConnectionStringBuilder
         {
             Server = settings.Host,
@@ -46,9 +49,13 @@ public sealed class MySqlStatsWriter : IStatsWriter
             var mapCache = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
             var roundCache = new Dictionary<(ulong MapSessionId, int RoundNumber), ulong>();
 
-            await WriteSessionsOpenedAsync(connection, tx, batch.SessionOpened, playerCache, mapCache, cancellationToken).ConfigureAwait(false);
+            ulong? serverId = _serverName != null
+                ? await EnsureServerIdAsync(connection, tx, _serverName, cancellationToken).ConfigureAwait(false)
+                : null;
+
+            await WriteSessionsOpenedAsync(connection, tx, batch.SessionOpened, playerCache, mapCache, serverId, cancellationToken).ConfigureAwait(false);
             await WriteSessionsClosedAsync(connection, tx, batch.SessionClosed, playerCache, cancellationToken).ConfigureAwait(false);
-            await WriteRoundsStartedAsync(connection, tx, batch.RoundStarted, mapCache, cancellationToken).ConfigureAwait(false);
+            await WriteRoundsStartedAsync(connection, tx, batch.RoundStarted, mapCache, serverId, cancellationToken).ConfigureAwait(false);
             await WriteRoundsEndedAsync(connection, tx, batch.RoundEnded, mapCache, cancellationToken).ConfigureAwait(false);
             await WritePlayerDeathsAsync(connection, tx, batch.PlayerDeaths, playerCache, cancellationToken).ConfigureAwait(false);
             await WritePlayerActionsAsync(connection, tx, batch.PlayerActions, playerCache, roundCache, cancellationToken).ConfigureAwait(false);
@@ -69,11 +76,12 @@ public sealed class MySqlStatsWriter : IStatsWriter
         List<PlayerSessionOpened> sessions,
         Dictionary<ulong, ulong> playerCache,
         Dictionary<string, ulong> mapCache,
+        ulong? serverId,
         CancellationToken cancellationToken)
     {
         foreach (var opened in sessions)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, opened.MapName, opened.ConnectedAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, opened.MapName, opened.ConnectedAtUtc, serverId, cancellationToken).ConfigureAwait(false);
             mapCache[opened.MapName] = mapSessionId;
 
             var playerId = await EnsurePlayerIdAsync(connection, tx, opened.SteamId64, opened.ConnectedAtUtc, playerCache, cancellationToken, opened.DisplayName).ConfigureAwait(false);
@@ -143,7 +151,7 @@ LIMIT 1", connection, tx);
             var affected = await updateCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             if (affected > 0) continue;
 
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, closed.DisconnectedAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, string.Empty, closed.DisconnectedAtUtc, null, cancellationToken).ConfigureAwait(false);
 
             await using var insertCmd = new MySqlCommand(@"
 INSERT INTO player_sessions (
@@ -171,11 +179,12 @@ INSERT INTO player_sessions (
         MySqlConnection connection, MySqlTransaction tx,
         List<RoundStarted> rounds,
         Dictionary<string, ulong> mapCache,
+        ulong? serverId,
         CancellationToken cancellationToken)
     {
         foreach (var round in rounds)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, round.MapName, round.StartedAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, round.MapName, round.StartedAtUtc, serverId, cancellationToken).ConfigureAwait(false);
             mapCache[round.MapName] = mapSessionId;
 
             await using var cmd = new MySqlCommand(@"
@@ -205,7 +214,7 @@ ON DUPLICATE KEY UPDATE
     {
         foreach (var round in rounds)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, round.MapName, round.EndedAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, round.MapName, round.EndedAtUtc, null, cancellationToken).ConfigureAwait(false);
             mapCache[round.MapName] = mapSessionId;
 
             await using var cmd = new MySqlCommand(@"
@@ -262,7 +271,7 @@ INSERT INTO rounds (
     {
         foreach (var death in deaths)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, death.MapName, death.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, death.MapName, death.OccurredAtUtc, null, cancellationToken).ConfigureAwait(false);
             var attackerId = await EnsureOptionalPlayerIdAsync(connection, tx, death.AttackerSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
             var victimId = await EnsureOptionalPlayerIdAsync(connection, tx, death.VictimSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
             var assisterId = await EnsureOptionalPlayerIdAsync(connection, tx, death.AssisterSteamId64, death.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
@@ -309,7 +318,7 @@ INSERT INTO kill_events (
     {
         foreach (var action in actions)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, action.MapName, action.OccurredAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, action.MapName, action.OccurredAtUtc, null, cancellationToken).ConfigureAwait(false);
             var playerId = await EnsurePlayerIdAsync(connection, tx, action.SteamId64, action.OccurredAtUtc, playerCache, cancellationToken).ConfigureAwait(false);
 
             ulong? roundId = null;
@@ -342,7 +351,7 @@ INSERT INTO player_action_events (
     {
         foreach (var snapshot in snapshots)
         {
-            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, snapshot.MapName, snapshot.CapturedAtUtc, cancellationToken).ConfigureAwait(false);
+            var mapSessionId = await EnsureOpenMapSessionIdAsync(connection, tx, snapshot.MapName, snapshot.CapturedAtUtc, null, cancellationToken).ConfigureAwait(false);
 
             ulong snapshotId;
             await using (var insertSnapshot = new MySqlCommand(@"
@@ -437,9 +446,29 @@ ON DUPLICATE KEY UPDATE
         return playerId;
     }
 
+    private static async Task<ulong> EnsureServerIdAsync(
+        MySqlConnection connection, MySqlTransaction tx,
+        string serverName, CancellationToken cancellationToken)
+    {
+        await using var upsert = new MySqlCommand(@"
+INSERT INTO servers (server_name, first_seen_utc, last_seen_utc, created_at_utc, updated_at_utc)
+VALUES (@name, @now, @now, @now, @now)
+ON DUPLICATE KEY UPDATE last_seen_utc = VALUES(last_seen_utc), updated_at_utc = VALUES(updated_at_utc)",
+            connection, tx);
+        upsert.Parameters.AddWithValue("@name", serverName);
+        upsert.Parameters.AddWithValue("@now", DateTime.UtcNow);
+        await upsert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var select = new MySqlCommand(
+            "SELECT server_id FROM servers WHERE server_name = @name LIMIT 1", connection, tx);
+        select.Parameters.AddWithValue("@name", serverName);
+        return Convert.ToUInt64(await select.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
+    }
+
     private static async Task<ulong> EnsureOpenMapSessionIdAsync(
         MySqlConnection connection, MySqlTransaction tx,
         string? mapName, DateTime atUtc,
+        ulong? serverId,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(mapName))
@@ -470,12 +499,13 @@ LIMIT 1", connection, tx))
 
         await using var insert = new MySqlCommand(@"
 INSERT INTO map_sessions (
-    map_name, started_at_utc, server_current_time_start, created_at_utc, updated_at_utc
+    server_id, map_name, started_at_utc, server_current_time_start, created_at_utc, updated_at_utc
 ) VALUES (
-    @map_name, @started_at_utc, NULL, @created_at_utc, @updated_at_utc
+    @server_id, @map_name, @started_at_utc, NULL, @created_at_utc, @updated_at_utc
 );
 SELECT LAST_INSERT_ID();", connection, tx);
 
+        insert.Parameters.AddWithValue("@server_id", serverId.HasValue ? (object)serverId.Value : DBNull.Value);
         insert.Parameters.AddWithValue("@map_name", mapName);
         insert.Parameters.AddWithValue("@started_at_utc", atUtc);
         insert.Parameters.AddWithValue("@created_at_utc", atUtc);

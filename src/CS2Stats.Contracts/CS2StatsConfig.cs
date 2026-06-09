@@ -2,6 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace CS2Stats.Contracts;
 
+public sealed class ServerSettings
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "default";
+}
+
 public sealed class MySqlSettings
 {
     [JsonPropertyName("host")]

@@ -6,6 +6,9 @@ namespace CS2Stats.Plugin;
 
 public sealed class PluginConfig : BasePluginConfig
 {
+    [JsonPropertyName("server")]
+    public ServerSettings Server { get; set; } = new();
+
     [JsonPropertyName("mySql")]
     public MySqlSettings MySql { get; set; } = new();
 
