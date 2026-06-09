@@ -22,7 +22,7 @@ public sealed class CS2StatsPlugin : BasePlugin, IPluginConfig<PluginConfig>
     private volatile bool _writerDisabledDueToDbAuth;
 
     public override string ModuleName => "CS2 Stats";
-    public override string ModuleVersion => "1.0.2";
+    public override string ModuleVersion => "1.0.3";
     public override string ModuleAuthor => "NeuTroNBZh";
     public override string ModuleDescription => "Capture and persist CS2 server/player stats.";
 

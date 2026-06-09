@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <AssemblyName>CS2Stats</AssemblyName>
     <Authors>NeuTroNBZh</Authors>
     <Company>NeuTroNBZh</Company>
