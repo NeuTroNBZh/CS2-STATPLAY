@@ -557,7 +557,7 @@ BEGIN
             )
         ),
         (
-            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6)))), 0)
+            SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))))), 0)
             FROM player_sessions ps
             WHERE ps.player_id = p.player_id
         ),
@@ -605,7 +605,7 @@ BEGIN
     WHERE player_session_id = p_player_session_id;
 
     SET v_session_end = COALESCE(v_disconnected_at_utc, UTC_TIMESTAMP(6));
-    SET v_playtime_seconds = TIMESTAMPDIFF(SECOND, v_connected_at_utc, v_session_end);
+    SET v_playtime_seconds = GREATEST(0, TIMESTAMPDIFF(SECOND, v_connected_at_utc, v_session_end));
     
     INSERT INTO player_session_stats (
         player_session_id, kills, deaths, assists, headshots, weapon_fire_count,
@@ -708,7 +708,7 @@ BEGIN
               )
         ),
         (
-            SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6)))), 0)
+            SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))))), 0)
             FROM player_sessions ps
             WHERE ps.player_id = p_player_id
               AND ps.map_session_id = p_map_session_id
