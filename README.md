@@ -5,13 +5,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-0f172a.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-CS2%20%2B%20CounterStrikeSharp-14532d.svg?style=flat-square)](https://docs.cssharp.dev)
 [![MySQL](https://img.shields.io/badge/MySQL-8%2B-4479A1?style=flat-square)](https://www.mysql.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-dashboard-d95926?style=flat-square)](https://neutronbzh.github.io/cs2-statplay-site/)
 
 Production-ready Counter-Strike 2 stats plugin for [CounterStrikeSharp](https://docs.cssharp.dev). Captures every game event in real time, persists it to MySQL, and aggregates it at three granularity levels: **lifetime**, **session**, and **per map**.
+
+**[→ Live demo dashboard](https://neutronbzh.github.io/cs2-statplay-site/)** — a showcase site with example charts and a full catalogue of every stat the plugin can capture or derive.
 
 ---
 
 ## Table of Contents
 
+- [Live Demo](#live-demo)
 - [Features](#features)
 - [How It Works](#how-it-works)
 - [Requirements](#requirements)
@@ -24,6 +28,20 @@ Production-ready Counter-Strike 2 stats plugin for [CounterStrikeSharp](https://
 - [Webhook Milestones](#webhook-milestones)
 - [Local Development](#local-development)
 - [Contributing](#contributing)
+
+---
+
+## Live Demo
+
+**[neutronbzh.github.io/cs2-statplay-site](https://neutronbzh.github.io/cs2-statplay-site/)** — a static showcase site
+([source](https://github.com/NeuTroNBZh/cs2-statplay-site)) with a full catalogue of every stat the plugin captures
+directly vs. every stat that can be derived from it (K/D, ADR, headshot %, multi-kills, entry kills, win rate,
+server presence…), plus an example dashboard built with fictional data to show what it renders like.
+
+| | |
+|---|---|
+| ![Dashboard overview — stat tiles and leaderboard](.github/screenshots/dashboard-overview.jpg) | ![Kills by weapon and round wins](.github/screenshots/dashboard-weapons-rounds.png) |
+| ![Kills over the last 8 sessions](.github/screenshots/dashboard-sessions.png) | ![Connected players during a match](.github/screenshots/dashboard-presence.png) |
 
 ---
 
