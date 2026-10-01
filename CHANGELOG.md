@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.2] - 2026-10-01
+
+### Fixed
+- MySQL 8 compatibility: stored procedures are now dropped then created (`CREATE OR REPLACE PROCEDURE` only exists in MariaDB). Database initialization no longer fails and outdated procedures are replaced at startup.
+- Full stats refresh no longer times out: new index `ix_player_action_events_player_type (player_id, action_type, action_value)` (migration 7). Measured on MySQL 8.4 with 200 players and 360k events: 125 s -> 0.2 s.
+- `rounds_played` (lifetime and map stats) counts the rounds started while the player was connected, like session stats, instead of every round of each map where the player had an event.
+
 ## [1.0.1] - 2026-03-29
 
 ### Fixed
