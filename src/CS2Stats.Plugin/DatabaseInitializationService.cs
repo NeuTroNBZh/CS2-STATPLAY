@@ -117,7 +117,9 @@ public sealed class DatabaseInitializationService
     CONSTRAINT fk_hostage_events_map_session FOREIGN KEY (map_session_id) REFERENCES map_sessions (map_session_id),
     CONSTRAINT fk_hostage_events_round FOREIGN KEY (round_id) REFERENCES rounds (round_id),
     CONSTRAINT fk_hostage_events_player FOREIGN KEY (player_id) REFERENCES players (player_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"),
+        // Per-player action counts: without it MySQL scans every event of the action type for each player.
+        (7, "CREATE INDEX ix_player_action_events_player_type ON player_action_events (player_id, action_type, action_value)")
     ];
 
     private async Task ApplyMigrationsAsync(CancellationToken cancellationToken)
@@ -157,7 +159,7 @@ public sealed class DatabaseInitializationService
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (MySqlException ex) when (ex.Number is 1060 or 1050)
+            catch (MySqlException ex) when (ex.Number is 1060 or 1050 or 1061)
             {
                 _logger.LogDebug("[CS2Stats] Migration {Version} skipped (object exists): {Error}", version, ex.Message);
             }
@@ -503,11 +505,12 @@ CREATE TABLE IF NOT EXISTS presence_snapshot_players (
 ";
     }
 
-    private static string GetStoredProceduresScript()
+    internal static string GetStoredProceduresScript()
     {
         return @"
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE sp_refresh_player_lifetime_stats(
+DROP PROCEDURE IF EXISTS sp_refresh_player_lifetime_stats$$
+CREATE PROCEDURE sp_refresh_player_lifetime_stats(
     IN p_player_id BIGINT UNSIGNED
 )
 BEGIN
@@ -542,19 +545,11 @@ BEGIN
         (SELECT COUNT(*) FROM player_action_events pae WHERE pae.player_id = p.player_id AND pae.action_type = 'round_mvp'),
         (
             SELECT COUNT(DISTINCT r.round_id)
-            FROM rounds r
-            WHERE EXISTS (
-                SELECT 1
-                FROM kill_events ke
-                WHERE ke.map_session_id = r.map_session_id
-                  AND (ke.attacker_player_id = p.player_id OR ke.victim_player_id = p.player_id OR ke.assister_player_id = p.player_id)
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM player_action_events pae
-                WHERE pae.map_session_id = r.map_session_id
-                  AND pae.player_id = p.player_id
-            )
+            FROM player_sessions ps
+            JOIN rounds r
+              ON r.map_session_id = ps.map_session_id
+             AND r.started_at_utc BETWEEN ps.connected_at_utc AND COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))
+            WHERE ps.player_id = p.player_id
         ),
         (
             SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))))), 0)
@@ -582,7 +577,8 @@ END$$
 DELIMITER ;
 
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE sp_refresh_player_session_stats(
+DROP PROCEDURE IF EXISTS sp_refresh_player_session_stats$$
+CREATE PROCEDURE sp_refresh_player_session_stats(
     IN p_player_session_id BIGINT UNSIGNED
 )
 BEGIN
@@ -651,7 +647,8 @@ END$$
 DELIMITER ;
 
 DELIMITER $$
-CREATE OR REPLACE PROCEDURE sp_refresh_player_map_stats(
+DROP PROCEDURE IF EXISTS sp_refresh_player_map_stats$$
+CREATE PROCEDURE sp_refresh_player_map_stats(
     IN p_player_id BIGINT UNSIGNED,
     IN p_map_session_id BIGINT UNSIGNED
 )
@@ -692,20 +689,12 @@ BEGIN
         (SELECT COUNT(*) FROM player_action_events pae WHERE pae.map_session_id = p_map_session_id AND pae.player_id = p_player_id AND pae.action_type = 'round_mvp'),
         (
             SELECT COUNT(DISTINCT r.round_id)
-            FROM rounds r
-            WHERE r.map_session_id = p_map_session_id
-              AND (
-                EXISTS (
-                    SELECT 1 FROM kill_events ke
-                    WHERE ke.map_session_id = r.map_session_id
-                      AND (ke.attacker_player_id = p_player_id OR ke.victim_player_id = p_player_id OR ke.assister_player_id = p_player_id)
-                )
-                OR EXISTS (
-                    SELECT 1 FROM player_action_events pae
-                    WHERE pae.map_session_id = r.map_session_id
-                      AND pae.player_id = p_player_id
-                )
-              )
+            FROM player_sessions ps
+            JOIN rounds r
+              ON r.map_session_id = ps.map_session_id
+             AND r.started_at_utc BETWEEN ps.connected_at_utc AND COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))
+            WHERE ps.player_id = p_player_id
+              AND ps.map_session_id = p_map_session_id
         ),
         (
             SELECT COALESCE(SUM(GREATEST(0, TIMESTAMPDIFF(SECOND, ps.connected_at_utc, COALESCE(ps.disconnected_at_utc, UTC_TIMESTAMP(6))))), 0)
